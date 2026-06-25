@@ -94,6 +94,50 @@ def reload_data():
     _CACHE.clear()
 
 
+def _load_fixtures():
+    """Todos los partidos de grupos del Mundial 2026 (jugados + pendientes),
+    con fecha y flag de campo neutral."""
+    out = []
+    with open(CSV_PATH, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if r["tournament"] != "FIFA World Cup" or r["date"] < "2026-01-01":
+                continue
+            h, a = _fix(r["home_team"]), _fix(r["away_team"])
+            if h not in TEAM_GROUP or a not in TEAM_GROUP:
+                continue
+            played = r["home_score"] not in ("NA", "")
+            out.append({
+                "date": r["date"], "home": h, "away": a,
+                "neutral": r["neutral"].strip().upper() == "TRUE",
+                "played": played,
+                "hs": int(r["home_score"]) if played else None,
+                "as": int(r["away_score"]) if played else None,
+            })
+    out.sort(key=lambda x: x["date"])
+    return out
+
+
+def group_fixtures():
+    """Predicción del modelo para los 72 partidos de grupos. Los jugados llevan
+    resultado real + acierto; los pendientes quedan a la espera (…)."""
+    res = []
+    for fx in _load_fixtures():
+        pr = M.predict_fixture(fx["home"], fx["away"], fx["neutral"])
+        item = {
+            "date": fx["date"], "group": TEAM_GROUP[fx["home"]],
+            "home": fx["home"], "away": fx["away"],
+            "pred": pr["score"],
+            "p_home": pr["p_home"], "p_draw": pr["p_draw"], "p_away": pr["p_away"],
+            "played": fx["played"], "real": None, "correct": None,
+        }
+        if fx["played"]:
+            item["real"] = f'{fx["hs"]}-{fx["as"]}'
+            ro = "H" if fx["hs"] > fx["as"] else ("A" if fx["as"] > fx["hs"] else "D")
+            item["correct"] = pr["outcome"] == ro
+        res.append(item)
+    return res
+
+
 def base_standings():
     """Puntos/GF/GC reales acumulados de los partidos ya jugados."""
     st = {t: {"pts": 0, "gf": 0, "ga": 0, "pj": 0} for t in TEAM_GROUP}
@@ -233,10 +277,13 @@ def project(n: int = 8000, force: bool = False):
                   for r in ("r32", "r16", "qf", "sf", "final")}
     champ = defaultdict(int)
     reach = {r: defaultdict(int) for r in ("r16", "qf", "sf", "final", "champion")}
+    qualify = defaultdict(int)   # nº de sims en que el equipo entra al cuadro (R32)
 
     for _ in range(n):
         jitter = {t: RNG.random() for t in TEAM_GROUP}
         r = _simulate_once(jitter)
+        for t in r["r32"]:
+            if t: qualify[t] += 1
         for idx, t in enumerate(r["r32"]):
             if t: pos_counts["r32"][idx][t] += 1
         for rd in ("r16", "qf", "sf", "final"):
@@ -247,6 +294,15 @@ def project(n: int = 8000, force: bool = False):
         if r["champion"]:
             champ[r["champion"]] += 1
             reach["champion"][r["champion"]] += 1
+
+    # Estado de clasificación por equipo:
+    #   in    = clasificado seguro (entra al cuadro en TODAS las simulaciones)
+    #   maybe = aún depende de resultados
+    #   out   = ya no puede clasificar
+    def _qstatus(t):
+        c = qualify.get(t, 0)
+        return "in" if c >= n else ("out" if c == 0 else "maybe")
+    status_map = {t: _qstatus(t) for t in TEAM_GROUP}
 
     # 32 equipos de entrada — asignación uno-a-uno óptima para que NINGÚN
     # equipo se repita (cada selección ocupa un solo hueco de 16avos).
@@ -265,15 +321,17 @@ def project(n: int = 8000, force: bool = False):
                 pa = M.advance_prob(a, b)
                 a_adv = pa >= 0.5
                 slots.append({"team": a, "prob": round(pa * 100), "win": a_adv,
-                              "qual": cur_meta[i].get("qual")})
+                              "qual": cur_meta[i].get("qual"), "status": status_map.get(a)})
                 slots.append({"team": b, "prob": round((1 - pa) * 100), "win": not a_adv,
-                              "qual": cur_meta[i + 1].get("qual")})
+                              "qual": cur_meta[i + 1].get("qual"), "status": status_map.get(b)})
                 winners.append(a if a_adv else b)
                 wmeta.append({})
             else:
                 t = a or b
-                slots.append({"team": a, "prob": None, "win": bool(a), "qual": cur_meta[i].get("qual")})
-                slots.append({"team": b, "prob": None, "win": bool(b), "qual": cur_meta[i + 1].get("qual")})
+                slots.append({"team": a, "prob": None, "win": bool(a),
+                              "qual": cur_meta[i].get("qual"), "status": status_map.get(a)})
+                slots.append({"team": b, "prob": None, "win": bool(b),
+                              "qual": cur_meta[i + 1].get("qual"), "status": status_map.get(b)})
                 winners.append(t); wmeta.append({})
         bracket[name] = slots
         cur, cur_meta = winners, wmeta
@@ -292,12 +350,19 @@ def project(n: int = 8000, force: bool = False):
         })
     teams_tbl.sort(key=lambda x: -x["champion"])
 
+    # clasificación real + estado (verde/naranja) por equipo
+    groups = current_group_tables()
+    for rows in groups.values():
+        for row in rows:
+            row["status"] = status_map.get(row["team"])
+
     data = {
         "simulations": n,
         "bracket": bracket,
         "champion": champion,
         "favourites": teams_tbl,
-        "groups": current_group_tables(),
+        "groups": groups,
+        "group_fixtures": group_fixtures(),
         "remaining_group_matches": len(REMAINING),
         "played_group_matches": len(PLAYED),
     }

@@ -85,6 +85,41 @@ def score_matrix(team_a: str, team_b: str):
     return M, la, lb
 
 
+def expected_goals_venue(home: str, away: str, neutral: bool = True) -> tuple[float, float]:
+    """Goles esperados aplicando ventaja local si el partido NO es neutral
+    (para partidos de fase de grupos con local designado)."""
+    th, ta = _team(home), _team(away)
+    ah = th["attack"]  if th else DEFAULT_ATTACK
+    dh = th["defense"] if th else DEFAULT_DEFENSE
+    aa = ta["attack"]  if ta else DEFAULT_ATTACK
+    da = ta["defense"] if ta else DEFAULT_DEFENSE
+    adv = 0.0 if neutral else PARAMS["home_adv"]
+    lh = math.exp(PARAMS["mu"] + ah + da + adv)
+    la = math.exp(PARAMS["mu"] + aa + dh)
+    return max(0.15, lh), max(0.15, la)
+
+
+def predict_fixture(home: str, away: str, neutral: bool = True) -> dict:
+    """Predicción de un partido concreto (con local): marcador más probable
+    (moda) + probabilidades 1X2."""
+    lh, la = expected_goals_venue(home, away, neutral)
+    pa = [_poisson_pmf(lh, i) for i in range(MAX_GOALS + 1)]
+    pb = [_poisson_pmf(la, j) for j in range(MAX_GOALS + 1)]
+    Mx = np.outer(pa, pb); Mx /= Mx.sum()
+    i, j = np.unravel_index(int(np.argmax(Mx)), Mx.shape)
+    probs = {"home": float(np.tril(Mx, -1).sum()),
+             "draw": float(np.trace(Mx)),
+             "away": float(np.triu(Mx, 1).sum())}
+    outcome = max(probs, key=probs.get)
+    return {
+        "score": f"{int(i)}-{int(j)}",
+        "p_home": round(probs["home"] * 100),
+        "p_draw": round(probs["draw"] * 100),
+        "p_away": round(probs["away"] * 100),
+        "outcome": {"home": "H", "draw": "D", "away": "A"}[outcome],
+    }
+
+
 def match_probabilities(team_a: str, team_b: str) -> dict:
     """1X2 derivado del MISMO modelo Poisson (coherente con los marcadores)."""
     M, _, _ = score_matrix(team_a, team_b)

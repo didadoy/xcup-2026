@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
-import { TrophyIcon } from './Icons.jsx'
+import { TrophyIcon, QualDot } from './Icons.jsx'
 
 // ── Geometría ───────────────────────────────────────────────────────────
 const CARD_W = 158
@@ -41,7 +41,8 @@ function SlotRow({ slot, top }) {
   const isLoser = slot && slot.win === false           // pierde el cruce → atenuado
   const isWinner = slot && slot.win === true
   return (
-    <div className={`flex items-center gap-2 px-2.5 h-[31px] ${top ? '' : 'border-t border-white/[0.07]'} ${isLoser ? 'opacity-45' : ''}`}>
+    <div className={`flex items-center gap-1.5 px-2 h-[31px] ${top ? '' : 'border-t border-white/[0.07]'} ${isLoser ? 'opacity-45' : ''}`}>
+      <QualDot status={slot?.status} />
       {flag
         ? <img src={flag} alt="" width={22} height={15} className="rounded-[2px] object-cover flex-shrink-0" style={{ height: 15 }} />
         : <div className="w-[22px] h-[15px] rounded-[2px] bg-white/10 flex-shrink-0" />}

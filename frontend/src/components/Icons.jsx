@@ -67,6 +67,18 @@ export function CloseIcon({ size = 16, className = '' }) {
   )
 }
 
+// Puntito de estado de clasificación: verde = clasificado seguro,
+// naranja = aún depende. Para 'out'/desconocido deja hueco (alineación).
+export function QualDot({ status, className = '' }) {
+  if (status === 'in')
+    return <span title="Clasificado para el cuadro" aria-label="Clasificado"
+      className={`w-[7px] h-[7px] rounded-full bg-emerald-400 flex-shrink-0 ${className}`} />
+  if (status === 'maybe')
+    return <span title="Aún depende de otros resultados" aria-label="Depende de otros resultados"
+      className={`w-[7px] h-[7px] rounded-full bg-amber-400 flex-shrink-0 ${className}`} />
+  return <span className={`w-[7px] h-[7px] flex-shrink-0 ${className}`} />
+}
+
 export function TargetIcon({ size = 20, className = '' }) {
   return (
     <svg {...base(size)} className={className}>

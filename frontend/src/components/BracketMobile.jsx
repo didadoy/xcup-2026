@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
-import { TrophyIcon } from './Icons.jsx'
+import { TrophyIcon, QualDot } from './Icons.jsx'
 
 const ROUNDS = [
   { key: 'r32', label: '16avos' },
@@ -16,7 +16,8 @@ function Row({ slot, top }) {
   const isLoser = slot && slot.win === false
   const isWinner = slot && slot.win === true
   return (
-    <div className={`flex items-center gap-2.5 px-3 h-11 ${top ? '' : 'border-t border-white/[0.07]'} ${isLoser ? 'opacity-45' : ''}`}>
+    <div className={`flex items-center gap-2 px-3 h-11 ${top ? '' : 'border-t border-white/[0.07]'} ${isLoser ? 'opacity-45' : ''}`}>
+      <QualDot status={slot?.status} />
       {flag
         ? <img src={flag} alt="" width={26} height={17} className="rounded-[2px] object-cover flex-shrink-0" style={{ height: 17 }} />
         : <div className="w-[26px] h-[17px] rounded-[2px] bg-white/10 flex-shrink-0" />}

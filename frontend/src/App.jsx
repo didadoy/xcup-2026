@@ -85,8 +85,9 @@ export default function App() {
               <SignalIcon size={16} className="text-blue-300 flex-shrink-0 mt-0.5 sm:mt-0" />
               <span>
                 <strong>Proyección con datos reales</strong> · {data?.played_group_matches} jugados,
-                {' '}{data?.remaining_group_matches} simulados ({data?.simulations?.toLocaleString('es')} sim.). Los 32 son los
-                {' '}<strong>más probables</strong>; en cada cruce <strong>avanza el favorito</strong> (›). Pulsa un partido para la predicción.
+                {' '}{data?.remaining_group_matches} simulados. En cada cruce <strong>avanza el favorito</strong> (›). Pulsa un partido para la predicción.
+                <span className="ml-1 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> clasificado</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> depende</span>
               </span>
             </div>
           </div>
@@ -109,7 +110,7 @@ export default function App() {
               )}
             </div>
           )}
-          {view === 'groups' && <div className="h-full overflow-auto">{loading ? <Loading /> : <GroupsPanel groups={data?.groups} />}</div>}
+          {view === 'groups' && <div className="h-full overflow-auto">{loading ? <Loading /> : <GroupsPanel groups={data?.groups} fixtures={data?.group_fixtures} />}</div>}
           {view === 'favourites' && <div className="h-full overflow-auto">{loading ? <Loading /> : <FavouritesPanel favourites={data?.favourites} simulations={data?.simulations} />}</div>}
           {view === 'accuracy' && <div className="h-full overflow-auto"><AccuracyPanel /></div>}
 
