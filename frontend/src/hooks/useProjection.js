@@ -2,14 +2,27 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api.js'
 
 // ── Caché en navegador (stale-while-revalidate) ─────────────────────────
-// Muestra al instante lo último guardado y revalida por detrás. Así no se ve
-// el spinner cada vez que entras; solo la primera vez (cuando no hay caché).
+// Muestra al instante lo último guardado y, con un chequeo minúsculo a
+// /api/status, solo descarga la versión completa si el backend tiene datos
+// MÁS NUEVOS (p. ej. tras un redeploy o el recálculo de cada 6h). Así no se
+// re-simula nada por visita y los cambios aparecen solos, sin botón manual.
 function readCache(key) {
   try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : null }
   catch { return null }
 }
 function writeCache(key, data) {
   try { localStorage.setItem(key, JSON.stringify(data)) } catch { /* quota/priv */ }
+}
+
+// ¿El backend tiene datos más nuevos que los cacheados?
+async function backendIsNewer(cached) {
+  if (!cached || !cached.last_updated) return true
+  try {
+    const st = await api.status()
+    return !!(st && st.last_refresh && st.last_refresh > cached.last_updated)
+  } catch {
+    return false   // si el chequeo falla, nos quedamos con la caché
+  }
 }
 
 export function useIsDesktop(breakpoint = 1024) {
@@ -26,68 +39,54 @@ export function useIsDesktop(breakpoint = 1024) {
 }
 
 export function useProjection() {
-  const cached = readCache('xcup_projection_v2')
-  const [data, setData] = useState(cached)
-  const [loading, setLoading] = useState(!cached)   // spinner solo sin caché
+  const [data, setData] = useState(() => readCache('xcup_projection_v2'))
+  const [loading, setLoading] = useState(() => !readCache('xcup_projection_v2'))
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
   const load = useCallback(async () => {
-    setRefreshing(true)
     try {
+      const cached = readCache('xcup_projection_v2')
+      if (!(await backendIsNewer(cached))) { setLoading(false); return }  // caché al día
+      setRefreshing(true)
       const d = await api.projection()
-      if (d && d.loading) {                 // backend calculando → reintenta, mantiene caché
-        setTimeout(load, 3000)
-        return
-      }
+      if (d && d.loading) { setTimeout(load, 3000); return }   // backend calculando
       setData(d); writeCache('xcup_projection_v2', d)
       setError(null); setLoading(false); setRefreshing(false)
     } catch (e) {
       setError(e.message); setLoading(false); setRefreshing(false)
-      setTimeout(load, 5000)                // backend dormido/caído → reintenta
+      setTimeout(load, 5000)
     }
   }, [])
 
-  // Solo se llama al backend cuando hace falta:
-  //  - sin caché, o
-  //  - ya pasó la hora de actualización (cache.next_update).
-  // Si la caché está vigente, se muestra tal cual (cero llamadas) y se programa
-  // la revalidación justo para cuando toque (útil si la pestaña queda abierta).
   useEffect(() => {
-    const c = readCache('xcup_projection_v2')
-    const now = Date.now() / 1000
-    if (!c || !c.next_update || now >= c.next_update) { load(); return }
-    const ms = Math.min((c.next_update - now) * 1000 + 2000, 2 ** 31 - 1)
-    const t = setTimeout(load, ms)
-    return () => clearTimeout(t)
+    load()
+    const id = setInterval(load, 10 * 60 * 1000)   // re-chequea cada 10 min (pestaña abierta)
+    return () => clearInterval(id)
   }, [load])
 
   return { data, loading, refreshing, error, lastUpdated: data?.last_updated, refresh: load }
 }
 
 export function useBacktest() {
-  const cached = readCache('xcup_backtest_v2')
-  const [data, setData] = useState(cached)
-  const [loading, setLoading] = useState(!cached)
+  const [data, setData] = useState(() => readCache('xcup_backtest_v2'))
+  const [loading, setLoading] = useState(() => !readCache('xcup_backtest_v2'))
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let alive = true
     let timer
-    const load = () => {
-      api.backtest()
-        .then(d => {
-          if (!alive) return
-          if (d && d.loading) { timer = setTimeout(load, 3000); return }
-          setData(d); writeCache('xcup_backtest_v2', d); setLoading(false)
-        })
-        .catch(e => { if (alive) { setError(e.message); setLoading(false) } })
+    const load = async () => {
+      try {
+        const cached = readCache('xcup_backtest_v2')
+        if (!(await backendIsNewer(cached))) { if (alive) setLoading(false); return }
+        const d = await api.backtest()
+        if (!alive) return
+        if (d && d.loading) { timer = setTimeout(load, 3000); return }
+        setData(d); writeCache('xcup_backtest_v2', d); setLoading(false)
+      } catch (e) { if (alive) { setError(e.message); setLoading(false) } }
     }
-    // mismo criterio que la proyección: solo llama si caduca la caché
-    const c = readCache('xcup_backtest_v2')
-    const now = Date.now() / 1000
-    if (!c || !c.next_update || now >= c.next_update) load()
-    else timer = setTimeout(load, Math.min((c.next_update - now) * 1000 + 2000, 2 ** 31 - 1))
+    load()
     return () => { alive = false; clearTimeout(timer) }
   }, [])
 
