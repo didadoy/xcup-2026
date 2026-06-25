@@ -90,7 +90,7 @@ export default function GroupsPanel({ groups, fixtures }) {
         <p className="text-xs text-white/45">Clasificación <strong className="text-white/70">real</strong> + predicción de cada partido.</p>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /> clasificado</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400" /> depende</span>
-        <span className="flex items-center gap-1"><span className="text-emerald-400">✓</span>/<span className="text-red-400/80">✗</span> acierto · <span className="tracking-[0.15em]">···</span> por jugar</span>
+        <span className="flex items-center gap-1"><span className="text-emerald-400">✓</span>/<span className="text-red-400/80">✗</span> acierto del resultado (1·X·2) · <span className="tracking-[0.15em]">···</span> por jugar</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {letters.map(l => <GroupCard key={l} letter={l} rows={groups[l]} fixtures={byGroup[l]} />)}

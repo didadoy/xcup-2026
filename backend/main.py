@@ -37,7 +37,7 @@ SCHEDULE_HOURS = [0, 12]
 _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 CACHE_FILE = os.path.join(_DATA_DIR, "state_cache.json")    # runtime (gitignored)
 SEED_FILE = os.path.join(_DATA_DIR, "state_seed.json")      # semilla commiteada (fallback)
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 
 STATE = {
     "projection": None,

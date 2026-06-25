@@ -100,19 +100,27 @@ def expected_goals_venue(home: str, away: str, neutral: bool = True) -> tuple[fl
 
 
 def predict_fixture(home: str, away: str, neutral: bool = True) -> dict:
-    """Predicción de un partido concreto (con local): marcador más probable
-    (moda) + probabilidades 1X2."""
+    """Predicción de un partido concreto (con local): probabilidades 1X2 y un
+    marcador COHERENTE con el resultado previsto (si prevemos que gana el local,
+    el marcador es de victoria local; así el marcador y el acierto 1X2 nunca se
+    contradicen)."""
     lh, la = expected_goals_venue(home, away, neutral)
     pa = [_poisson_pmf(lh, i) for i in range(MAX_GOALS + 1)]
     pb = [_poisson_pmf(la, j) for j in range(MAX_GOALS + 1)]
     Mx = np.outer(pa, pb); Mx /= Mx.sum()
-    i, j = np.unravel_index(int(np.argmax(Mx)), Mx.shape)
     probs = {"home": float(np.tril(Mx, -1).sum()),
              "draw": float(np.trace(Mx)),
              "away": float(np.triu(Mx, 1).sum())}
     outcome = max(probs, key=probs.get)
+    # marcador más probable DENTRO del resultado previsto
+    best, bp = (0, 0), -1.0
+    for i in range(MAX_GOALS + 1):
+        for j in range(MAX_GOALS + 1):
+            ok = (outcome == "home" and i > j) or (outcome == "away" and j > i) or (outcome == "draw" and i == j)
+            if ok and Mx[i, j] > bp:
+                bp = Mx[i, j]; best = (i, j)
     return {
-        "score": f"{int(i)}-{int(j)}",
+        "score": f"{best[0]}-{best[1]}",
         "p_home": round(probs["home"] * 100),
         "p_draw": round(probs["draw"] * 100),
         "p_away": round(probs["away"] * 100),

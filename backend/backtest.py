@@ -46,12 +46,19 @@ def build_predictor(train, poi_kwargs=None):
         home_p = float(np.tril(M, -1).sum())
         draw_p = float(np.trace(M))
         away_p = float(np.triu(M, 1).sum())
-        # marcador = moda de la distribución conjunta (sí produce 1-0, 2-0…)
-        i, j = np.unravel_index(int(np.argmax(M)), M.shape)
+        # marcador coherente con el resultado previsto (1/X/2): el más probable
+        # DENTRO de ese resultado, para que marcador y acierto no se contradigan
+        outcome = max((("H", home_p), ("D", draw_p), ("A", away_p)), key=lambda x: x[1])[0]
+        best, bp = (0, 0), -1.0
+        for i in range(K):
+            for j in range(K):
+                ok = (outcome == "H" and i > j) or (outcome == "A" and j > i) or (outcome == "D" and i == j)
+                if ok and M[i, j] > bp:
+                    bp = M[i, j]; best = (int(i), int(j))
         return {
             "xg_h": lh, "xg_a": la,
             "p_home": home_p, "p_draw": draw_p, "p_away": away_p,
-            "score": (int(i), int(j)),
+            "score": best,
         }
 
     return predict, elo
