@@ -297,7 +297,7 @@ def assign_entrants(r32_counts, n):
 
 _CACHE = {}
 
-def project(n: int = 8000, force: bool = False):
+def project(n: int = 40000, force: bool = False):
     if not force and _CACHE.get("n") == n:
         return _CACHE["data"]
 
