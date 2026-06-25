@@ -5,13 +5,15 @@ Diseño pensado para muchos usuarios simultáneos:
 - TODO se precalcula en memoria (proyección Monte Carlo + backtest).
 - Las peticiones de usuario solo LEEN esa caché → baratas y constantes.
 - NO existe ningún endpoint que permita a un usuario forzar el recálculo.
-- Un hilo de fondo refresca los datos cada 12 h: descarga resultados nuevos,
-  reentrena el modelo y recalcula proyección y backtest, intercambiando la
-  caché de forma atómica (sin cortar el servicio).
+- El recálculo ocurre a HORAS FIJAS (por defecto 00:00 y 12:00 UTC): descarga
+  resultados nuevos, reentrena y recalcula, intercambiando la caché en caliente.
+- Cada respuesta lleva `next_update` (cuándo habrá datos nuevos), para que el
+  frontend solo vuelva a llamar cuando de verdad toque (no en cada visita).
 """
 import asyncio
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +23,8 @@ import wc2026
 import train_model
 import backtest
 
-REFRESH_SECONDS = 12 * 3600
+# Horas (UTC) a las que se recalcula. Cámbialas si quieres más/menos veces/día.
+SCHEDULE_HOURS_UTC = [0, 12]
 
 STATE = {
     "projection": None,
@@ -30,6 +33,18 @@ STATE = {
     "next_refresh": None,
     "refreshing": False,
 }
+
+
+def _next_slot(now: datetime | None = None) -> datetime:
+    """Próxima hora programada (UTC) posterior a `now`."""
+    now = now or datetime.now(timezone.utc)
+    cands = []
+    for d in (0, 1):
+        for h in SCHEDULE_HOURS_UTC:
+            t = (now + timedelta(days=d)).replace(hour=h, minute=0, second=0, microsecond=0)
+            if t > now:
+                cands.append(t)
+    return min(cands)
 
 
 def _compute(do_download_retrain: bool):
@@ -43,20 +58,22 @@ def _compute(do_download_retrain: bool):
     bt = backtest.run()
 
     now = int(time.time())
+    nxt = int(_next_slot().timestamp())
     proj = {
         **proj,
         "last_updated": now,
-        "next_update": now + REFRESH_SECONDS,
+        "next_update": nxt,
         "model": {
             "n_matches": model.META.get("n_matches"),
             "trained_through": model.META.get("trained_through"),
             "source": model.META.get("source"),
         },
     }
+    bt = {**bt, "last_updated": now, "next_update": nxt}
     STATE["projection"] = proj
     STATE["backtest"] = bt
     STATE["last_refresh"] = now
-    STATE["next_refresh"] = now + REFRESH_SECONDS
+    STATE["next_refresh"] = nxt
 
 
 async def _refresh_loop():
@@ -70,7 +87,9 @@ async def _refresh_loop():
         STATE["refreshing"] = False
 
     while True:
-        await asyncio.sleep(REFRESH_SECONDS)
+        nxt = _next_slot()
+        wait = (nxt - datetime.now(timezone.utc)).total_seconds()
+        await asyncio.sleep(max(1.0, wait))
         STATE["refreshing"] = True
         try:
             await asyncio.to_thread(_compute, True)    # descarga + reentreno

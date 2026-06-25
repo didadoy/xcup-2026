@@ -48,7 +48,20 @@ export function useProjection() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  // Solo se llama al backend cuando hace falta:
+  //  - sin caché, o
+  //  - ya pasó la hora de actualización (cache.next_update).
+  // Si la caché está vigente, se muestra tal cual (cero llamadas) y se programa
+  // la revalidación justo para cuando toque (útil si la pestaña queda abierta).
+  useEffect(() => {
+    const c = readCache('xcup_projection_v1')
+    const now = Date.now() / 1000
+    if (!c || !c.next_update || now >= c.next_update) { load(); return }
+    const ms = Math.min((c.next_update - now) * 1000 + 2000, 2 ** 31 - 1)
+    const t = setTimeout(load, ms)
+    return () => clearTimeout(t)
+  }, [load])
+
   return { data, loading, refreshing, error, lastUpdated: data?.last_updated, refresh: load }
 }
 
@@ -70,7 +83,11 @@ export function useBacktest() {
         })
         .catch(e => { if (alive) { setError(e.message); setLoading(false) } })
     }
-    load()
+    // mismo criterio que la proyección: solo llama si caduca la caché
+    const c = readCache('xcup_backtest_v1')
+    const now = Date.now() / 1000
+    if (!c || !c.next_update || now >= c.next_update) load()
+    else timer = setTimeout(load, Math.min((c.next_update - now) * 1000 + 2000, 2 ** 31 - 1))
     return () => { alive = false; clearTimeout(timer) }
   }, [])
 
