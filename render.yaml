@@ -1,0 +1,12 @@
+# Blueprint de Render (https://render.com). Con esto puedes desplegar el
+# backend en un clic: New → Blueprint → conecta este repo.
+# IMPORTANTE: un solo worker (estado y refresco viven en memoria del proceso).
+services:
+  - type: web
+    name: xcup-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health

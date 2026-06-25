@@ -1,5 +1,5 @@
-# AI World Cup 2026 - Start script
-Write-Host "Starting AI World Cup 2026..." -ForegroundColor Cyan
+# xCup 2026 - Start script
+Write-Host "Starting xCup 2026..." -ForegroundColor Cyan
 
 # Kill previous instances
 Get-Process python -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

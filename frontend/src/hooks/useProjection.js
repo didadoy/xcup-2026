@@ -22,12 +22,18 @@ export function useProjection() {
   const load = useCallback(async () => {
     try {
       const d = await api.projection()
+      if (d && d.loading) {            // backend aún calculando → reintenta
+        setLoading(true)
+        setTimeout(load, 3000)
+        return
+      }
       setData(d)
       setError(null)
+      setLoading(false)
     } catch (e) {
       setError(e.message)
-    } finally {
       setLoading(false)
+      setTimeout(load, 4000)
     }
   }, [])
 
@@ -42,11 +48,18 @@ export function useBacktest() {
 
   useEffect(() => {
     let alive = true
-    api.backtest()
-      .then(d => alive && setData(d))
-      .catch(e => alive && setError(e.message))
-      .finally(() => alive && setLoading(false))
-    return () => { alive = false }
+    let timer
+    const load = () => {
+      api.backtest()
+        .then(d => {
+          if (!alive) return
+          if (d && d.loading) { timer = setTimeout(load, 3000); return }  // aún calculando
+          setData(d); setLoading(false)
+        })
+        .catch(e => { if (alive) { setError(e.message); setLoading(false) } })
+    }
+    load()
+    return () => { alive = false; clearTimeout(timer) }
   }, [])
 
   return { data, loading, error }

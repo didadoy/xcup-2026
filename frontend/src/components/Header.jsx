@@ -23,7 +23,7 @@ export default function Header({ trainedThrough, nextUpdate }) {
           <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-600 to-violet-700 rounded-lg blur opacity-40 -z-10" />
         </div>
         <div className="leading-tight">
-          <span className="text-white font-bold text-sm sm:text-base tracking-tight">AI World Cup</span>
+          <span className="text-white font-bold text-sm sm:text-base tracking-tight">xCup</span>
           <span className="ml-1.5 text-blue-400 font-bold text-sm sm:text-base">2026</span>
         </div>
       </div>

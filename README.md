@@ -1,4 +1,4 @@
-# AI World Cup 2026 ⚽
+# xCup 2026 ⚽
 
 Predicción del cuadro eliminatorio del **Mundial 2026** con un modelo
 estadístico entrenado sobre **datos reales** (~49.500 partidos
@@ -54,6 +54,24 @@ La proyección y el backtest se **precalculan en memoria** al arrancar y se
 refrescan **automáticamente cada 12 h** (descarga resultados nuevos,
 reentrena y recalcula). Las peticiones de los usuarios solo leen esa caché,
 así que aguanta mucha concurrencia y nadie puede forzar el recálculo.
+
+## ☁️ Deploy
+
+Pensado para **frontend y backend separados**:
+
+**Backend** → [Render](https://render.com) (o Railway). El repo trae
+`render.yaml`: en Render haz *New → Blueprint*, conecta el repo y listo.
+Usa **un solo worker** (el estado y el refresco viven en memoria). Arranque
+no bloqueante: sirve un estado "cargando" mientras calcula la primera vez.
+
+**Frontend** → [Vercel](https://vercel.com) (o Netlify):
+1. Importa el repo y pon **Root Directory = `frontend`** (Vite se detecta solo).
+2. Añade la variable de entorno **`VITE_API_URL`** con la URL del backend
+   (p. ej. `https://xcup-backend.onrender.com`).
+3. Deploy.
+
+> Nota: en planes gratuitos el backend puede "dormirse" tras un rato sin uso;
+> la primera petición tras dormir tarda unos segundos (el frontend reintenta solo).
 
 ## 🛠️ Stack
 

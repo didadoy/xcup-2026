@@ -1,4 +1,6 @@
-const BASE = '/api'
+// En desarrollo usa el proxy de Vite (/api). En producción, define
+// VITE_API_URL con la URL del backend desplegado (p. ej. https://...onrender.com).
+const BASE = (import.meta.env.VITE_API_URL || '') + '/api'
 
 async function get(path) {
   const r = await fetch(BASE + path)

@@ -60,11 +60,20 @@ def _compute(do_download_retrain: bool):
 
 
 async def _refresh_loop():
+    # Cálculo inicial en segundo plano (no bloquea el arranque del servidor).
+    STATE["refreshing"] = True
+    try:
+        await asyncio.to_thread(_compute, False)      # con datos/modelo presentes
+    except Exception as e:
+        print("initial compute error:", e)
+    finally:
+        STATE["refreshing"] = False
+
     while True:
         await asyncio.sleep(REFRESH_SECONDS)
         STATE["refreshing"] = True
         try:
-            await asyncio.to_thread(_compute, True)   # con descarga + reentreno
+            await asyncio.to_thread(_compute, True)    # descarga + reentreno
         except Exception as e:
             print("refresh error:", e)
         finally:
@@ -73,14 +82,12 @@ async def _refresh_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Arranque: calcula con los datos/modelo ya presentes (sin descargar).
-    await asyncio.to_thread(_compute, False)
     task = asyncio.create_task(_refresh_loop())
     yield
     task.cancel()
 
 
-app = FastAPI(title="AI World Cup 2026", lifespan=lifespan)
+app = FastAPI(title="xCup 2026", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["GET"], allow_headers=["*"])
 
