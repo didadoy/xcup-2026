@@ -1,0 +1,25 @@
+# Despliega el backend en Render en cada push a main, de forma fiable
+# (sin depender del webhook automático de Render, que a veces no dispara).
+#
+# Configúralo UNA vez:
+#  1. Render → tu servicio xcup-backend → Settings → Deploy Hook → copia la URL.
+#  2. GitHub → repo → Settings → Secrets and variables → Actions →
+#     New repository secret → nombre RENDER_DEPLOY_HOOK, valor esa URL.
+name: render-deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          if [ -z "${HOOK}" ]; then
+            echo "Falta el secret RENDER_DEPLOY_HOOK (no se hace nada)"; exit 0
+          fi
+          curl -fsS -X POST "${HOOK}" && echo "Deploy de Render disparado."
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
