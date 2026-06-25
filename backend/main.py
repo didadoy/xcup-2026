@@ -29,7 +29,7 @@ import backtest
 # Horas a las que se recalcula, en la ZONA HORARIA indicada (no UTC).
 # Por defecto 00:00 y 12:00 hora de España. Cambia TZ/horas a tu gusto.
 SCHEDULE_TZ = ZoneInfo("Europe/Madrid")
-SCHEDULE_HOURS = [0, 12]
+SCHEDULE_HOURS = [0, 6, 12, 18]
 
 # El resultado se guarda en disco para que un reinicio/arranque NO vuelva a
 # simular: se carga el guardado si sigue vigente. Sube CACHE_VERSION si cambias
@@ -37,7 +37,7 @@ SCHEDULE_HOURS = [0, 12]
 _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 CACHE_FILE = os.path.join(_DATA_DIR, "state_cache.json")    # runtime (gitignored)
 SEED_FILE = os.path.join(_DATA_DIR, "state_seed.json")      # semilla commiteada (fallback)
-CACHE_VERSION = 3
+CACHE_VERSION = 4
 
 STATE = {
     "projection": None,

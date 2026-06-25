@@ -12,6 +12,7 @@ Nada de esto está inventado: los cruces salen de la estructura oficial
 y de simular los partidos reales que quedan.
 """
 import csv
+import itertools
 import os
 from collections import defaultdict
 
@@ -155,6 +156,34 @@ def _rank_key(t, st, jitter):
     return (s["pts"], s["gf"] - s["ga"], s["gf"], jitter.get(t, 0))
 
 
+def _remaining_in_group(g):
+    return [(h, a) for (h, a) in REMAINING if TEAM_GROUP.get(h) == g]
+
+
+def clinched_top2(team, g, base):
+    """¿Tiene el equipo asegurada MATEMÁTICAMENTE una plaza entre los 2 primeros
+    de su grupo? Enumera todos los resultados posibles de los partidos que
+    quedan en el grupo. Conservador: cuenta los empates a puntos en contra del
+    equipo (solo dice 'sí' si es seguro pase lo que pase)."""
+    teams = GROUPS[g]
+    rem = _remaining_in_group(g)
+    if not rem:
+        order = sorted(teams, key=lambda t: (base[t]["pts"], base[t]["gf"] - base[t]["ga"], base[t]["gf"]),
+                       reverse=True)
+        return team in order[:2]
+    for combo in itertools.product(("H", "D", "A"), repeat=len(rem)):
+        pts = {t: base[t]["pts"] for t in teams}
+        for (h, a), res in zip(rem, combo):
+            if res == "H":   pts[h] += 3
+            elif res == "A": pts[a] += 3
+            else:            pts[h] += 1; pts[a] += 1
+        pT = pts[team]
+        above = sum(1 for t in teams if t != team and pts[t] >= pT)
+        if above >= 2:        # podría quedar 3º o peor en este escenario
+            return False
+    return True
+
+
 def _assign_thirds(third_by_group):
     """Empareja terceros clasificados a huecos respetando elegibilidad.
     third_by_group: {grupo: equipo}. Devuelve {slot_id: equipo} o None."""
@@ -296,12 +325,15 @@ def project(n: int = 8000, force: bool = False):
             reach["champion"][r["champion"]] += 1
 
     # Estado de clasificación por equipo:
-    #   in    = clasificado seguro (entra al cuadro en TODAS las simulaciones)
-    #   maybe = aún depende de resultados
-    #   out   = ya no puede clasificar
+    #   in    = plaza ASEGURADA (matemáticamente entre los 2 primeros del grupo)
+    #   maybe = aún depende de resultados (puede entrar, incl. como mejor 3º)
+    #   out   = ya no puede clasificar (en ninguna simulación)
+    base = base_standings()
     def _qstatus(t):
+        if clinched_top2(t, TEAM_GROUP[t], base):
+            return "in"
         c = qualify.get(t, 0)
-        return "in" if c >= n else ("out" if c == 0 else "maybe")
+        return "maybe" if c > 0 else "out"
     status_map = {t: _qstatus(t) for t in TEAM_GROUP}
 
     # 32 equipos de entrada — asignación uno-a-uno óptima para que NINGÚN
