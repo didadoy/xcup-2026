@@ -31,7 +31,7 @@ function Loading() {
 }
 
 export default function App() {
-  const { data, loading, error } = useProjection()
+  const { data, loading, refreshing, error, lastUpdated } = useProjection()
   const [sel, setSel] = useState(null)
   const [view, setView] = useState('bracket')
   const isDesktop = useIsDesktop()
@@ -54,7 +54,7 @@ export default function App() {
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen h-screen">
-        <Header trainedThrough={data?.model?.trained_through} nextUpdate={data?.next_update} />
+        <Header trainedThrough={data?.model?.trained_through} lastUpdated={lastUpdated} refreshing={refreshing} />
 
         {/* Barra: título + pestañas (responsive) */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 sm:px-6 pt-3 sm:pt-4 flex-shrink-0">
@@ -92,9 +92,9 @@ export default function App() {
           </div>
         )}
 
-        {error && (
+        {error && !data && (
           <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs text-amber-300 flex items-center gap-2">
-            <AlertIcon size={15} className="flex-shrink-0" /><span>No se conecta al servidor. Reintentando…</span>
+            <AlertIcon size={15} className="flex-shrink-0" /><span>Conectando con el servidor… (puede tardar si estaba en reposo)</span>
           </div>
         )}
 
