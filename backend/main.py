@@ -31,7 +31,9 @@ SCHEDULE_HOURS_UTC = [0, 12]
 # El resultado se guarda en disco para que un reinicio/arranque NO vuelva a
 # simular: se carga el guardado si sigue vigente. Sube CACHE_VERSION si cambias
 # la estructura de datos.
-CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "state_cache.json")
+_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+CACHE_FILE = os.path.join(_DATA_DIR, "state_cache.json")    # runtime (gitignored)
+SEED_FILE = os.path.join(_DATA_DIR, "state_seed.json")      # semilla commiteada (fallback)
 CACHE_VERSION = 1
 
 STATE = {
@@ -54,15 +56,20 @@ def _persist():
         print("persist error:", e)
 
 
-def _load_persisted():
+def _read_cache(path):
     try:
-        with open(CACHE_FILE, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             c = json.load(f)
         if c.get("v") != CACHE_VERSION or not c.get("projection"):
             return None
         return c
     except Exception:
         return None
+
+
+def _load_persisted():
+    # Runtime primero; si no, la semilla commiteada (para arranques en frío).
+    return _read_cache(CACHE_FILE) or _read_cache(SEED_FILE)
 
 
 def _next_slot(now: datetime | None = None) -> datetime:

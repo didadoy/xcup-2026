@@ -70,8 +70,17 @@ no bloqueante: sirve un estado "cargando" mientras calcula la primera vez.
    (p. ej. `https://xcup-backend.onrender.com`).
 3. Deploy.
 
-> Nota: en planes gratuitos el backend puede "dormirse" tras un rato sin uso;
-> la primera petición tras dormir tarda unos segundos (el frontend reintenta solo).
+### Que el primer visitante no espere
+
+- **Caché en disco + semilla.** El backend guarda su resultado en disco y, en
+  arranques en frío, carga una **semilla commiteada** (`backend/data/state_seed.json`)
+  al instante — así nunca simula para servir la primera petición; si esos datos
+  están caducados, se refrescan por detrás. (No re-simula al reiniciar.)
+- **Keep-alive (opcional).** En Render free el servicio se duerme tras ~15 min.
+  El repo trae un workflow `.github/workflows/keep-alive.yml` que hace ping a
+  `/api/health` cada 10 min para mantenerlo despierto. Actívalo creando un
+  *secret* del repo **`BACKEND_URL`** con la URL de tu backend. (Alternativa más
+  fiable: un servicio de uptime como UptimeRobot o cron-job.org.)
 
 ## 🛠️ Stack
 

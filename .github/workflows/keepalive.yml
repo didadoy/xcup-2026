@@ -1,0 +1,25 @@
+# Mantiene despierto el backend (Render free se duerme tras ~15 min sin uso).
+# Llama a /api/health cada ~10 min para que no se duerma y nunca haga un
+# arranque en frío para los visitantes.
+#
+# Configúralo: en GitHub → Settings → Secrets and variables → Actions →
+# New repository secret → nombre BACKEND_URL, valor la URL de tu backend
+# (p. ej. https://xcup-backend.onrender.com). Sin barra final.
+name: keep-alive
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # cada 10 minutos (best-effort de GitHub)
+  workflow_dispatch:          # permite lanzarlo a mano
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health
+        run: |
+          if [ -z "${BACKEND_URL}" ]; then
+            echo "Define el secret BACKEND_URL"; exit 0
+          fi
+          curl -fsS --max-time 30 "${BACKEND_URL}/api/health" || echo "ping fallido (puede estar despertando)"
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
