@@ -11,6 +11,8 @@ Diseño pensado para muchos usuarios simultáneos:
   frontend solo vuelva a llamar cuando de verdad toque (no en cada visita).
 """
 import asyncio
+import json
+import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -26,6 +28,12 @@ import backtest
 # Horas (UTC) a las que se recalcula. Cámbialas si quieres más/menos veces/día.
 SCHEDULE_HOURS_UTC = [0, 12]
 
+# El resultado se guarda en disco para que un reinicio/arranque NO vuelva a
+# simular: se carga el guardado si sigue vigente. Sube CACHE_VERSION si cambias
+# la estructura de datos.
+CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "state_cache.json")
+CACHE_VERSION = 1
+
 STATE = {
     "projection": None,
     "backtest": None,
@@ -33,6 +41,28 @@ STATE = {
     "next_refresh": None,
     "refreshing": False,
 }
+
+
+def _persist():
+    try:
+        os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
+        with open(CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"v": CACHE_VERSION,
+                       "projection": STATE["projection"],
+                       "backtest": STATE["backtest"]}, f, ensure_ascii=False)
+    except Exception as e:
+        print("persist error:", e)
+
+
+def _load_persisted():
+    try:
+        with open(CACHE_FILE, encoding="utf-8") as f:
+            c = json.load(f)
+        if c.get("v") != CACHE_VERSION or not c.get("projection"):
+            return None
+        return c
+    except Exception:
+        return None
 
 
 def _next_slot(now: datetime | None = None) -> datetime:
@@ -74,17 +104,37 @@ def _compute(do_download_retrain: bool):
     STATE["backtest"] = bt
     STATE["last_refresh"] = now
     STATE["next_refresh"] = nxt
+    _persist()    # guarda en disco para que un reinicio no vuelva a simular
 
 
 async def _refresh_loop():
-    # Cálculo inicial en segundo plano (no bloquea el arranque del servidor).
-    STATE["refreshing"] = True
-    try:
-        await asyncio.to_thread(_compute, False)      # con datos/modelo presentes
-    except Exception as e:
-        print("initial compute error:", e)
-    finally:
-        STATE["refreshing"] = False
+    # Arranque: si hay resultado guardado en disco, se sirve YA (aunque esté
+    # algo caducado) para que NADIE vea pantalla de carga. Si está caducado, se
+    # recalcula por detrás (los usuarios ven los datos viejos + "Actualizando…").
+    # Solo la PRIMERÍSIMA vez (sin nada guardado) hay que calcular antes de servir.
+    persisted = _load_persisted()
+    if persisted:
+        STATE["projection"] = persisted["projection"]
+        STATE["backtest"] = persisted["backtest"]
+        STATE["last_refresh"] = persisted["projection"].get("last_updated")
+        STATE["next_refresh"] = persisted["projection"].get("next_update")
+        print("cache en disco cargada (sin simular en el arranque)")
+        if time.time() >= (STATE["next_refresh"] or 0):
+            STATE["refreshing"] = True
+            try:
+                await asyncio.to_thread(_compute, False)   # caducada → refresca por detrás
+            except Exception as e:
+                print("refresh-on-start error:", e)
+            finally:
+                STATE["refreshing"] = False
+    else:
+        STATE["refreshing"] = True
+        try:
+            await asyncio.to_thread(_compute, False)
+        except Exception as e:
+            print("initial compute error:", e)
+        finally:
+            STATE["refreshing"] = False
 
     while True:
         nxt = _next_slot()

@@ -25,7 +25,7 @@ function Loading() {
   return (
     <div className="flex items-center justify-center h-72 text-white/30 gap-3 px-4 text-center">
       <span className="w-5 h-5 rounded-full border-2 border-white/20 border-t-blue-400 animate-spin flex-shrink-0" />
-      Simulando el torneo con datos reales…
+      Cargando…
     </div>
   )
 }

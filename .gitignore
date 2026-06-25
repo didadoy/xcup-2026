@@ -19,5 +19,8 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Caché de resultados generada por el backend (se regenera sola)
+backend/data/state_cache.json
+
 # Logs
 *.log
