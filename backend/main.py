@@ -16,6 +16,7 @@ import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,8 +26,10 @@ import wc2026
 import train_model
 import backtest
 
-# Horas (UTC) a las que se recalcula. Cámbialas si quieres más/menos veces/día.
-SCHEDULE_HOURS_UTC = [0, 12]
+# Horas a las que se recalcula, en la ZONA HORARIA indicada (no UTC).
+# Por defecto 00:00 y 12:00 hora de España. Cambia TZ/horas a tu gusto.
+SCHEDULE_TZ = ZoneInfo("Europe/Madrid")
+SCHEDULE_HOURS = [0, 12]
 
 # El resultado se guarda en disco para que un reinicio/arranque NO vuelva a
 # simular: se carga el guardado si sigue vigente. Sube CACHE_VERSION si cambias
@@ -73,15 +76,16 @@ def _load_persisted():
 
 
 def _next_slot(now: datetime | None = None) -> datetime:
-    """Próxima hora programada (UTC) posterior a `now`."""
+    """Próxima hora programada (en SCHEDULE_TZ) posterior a `now`, en UTC."""
     now = now or datetime.now(timezone.utc)
+    local = now.astimezone(SCHEDULE_TZ)
     cands = []
     for d in (0, 1):
-        for h in SCHEDULE_HOURS_UTC:
-            t = (now + timedelta(days=d)).replace(hour=h, minute=0, second=0, microsecond=0)
-            if t > now:
+        for h in SCHEDULE_HOURS:
+            t = (local + timedelta(days=d)).replace(hour=h, minute=0, second=0, microsecond=0)
+            if t > local:
                 cands.append(t)
-    return min(cands)
+    return min(cands).astimezone(timezone.utc)
 
 
 def _compute(do_download_retrain: bool):

@@ -26,7 +26,7 @@ export function useIsDesktop(breakpoint = 1024) {
 }
 
 export function useProjection() {
-  const cached = readCache('xcup_projection_v1')
+  const cached = readCache('xcup_projection_v2')
   const [data, setData] = useState(cached)
   const [loading, setLoading] = useState(!cached)   // spinner solo sin caché
   const [refreshing, setRefreshing] = useState(false)
@@ -40,7 +40,7 @@ export function useProjection() {
         setTimeout(load, 3000)
         return
       }
-      setData(d); writeCache('xcup_projection_v1', d)
+      setData(d); writeCache('xcup_projection_v2', d)
       setError(null); setLoading(false); setRefreshing(false)
     } catch (e) {
       setError(e.message); setLoading(false); setRefreshing(false)
@@ -54,7 +54,7 @@ export function useProjection() {
   // Si la caché está vigente, se muestra tal cual (cero llamadas) y se programa
   // la revalidación justo para cuando toque (útil si la pestaña queda abierta).
   useEffect(() => {
-    const c = readCache('xcup_projection_v1')
+    const c = readCache('xcup_projection_v2')
     const now = Date.now() / 1000
     if (!c || !c.next_update || now >= c.next_update) { load(); return }
     const ms = Math.min((c.next_update - now) * 1000 + 2000, 2 ** 31 - 1)
@@ -66,7 +66,7 @@ export function useProjection() {
 }
 
 export function useBacktest() {
-  const cached = readCache('xcup_backtest_v1')
+  const cached = readCache('xcup_backtest_v2')
   const [data, setData] = useState(cached)
   const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState(null)
@@ -79,12 +79,12 @@ export function useBacktest() {
         .then(d => {
           if (!alive) return
           if (d && d.loading) { timer = setTimeout(load, 3000); return }
-          setData(d); writeCache('xcup_backtest_v1', d); setLoading(false)
+          setData(d); writeCache('xcup_backtest_v2', d); setLoading(false)
         })
         .catch(e => { if (alive) { setError(e.message); setLoading(false) } })
     }
     // mismo criterio que la proyección: solo llama si caduca la caché
-    const c = readCache('xcup_backtest_v1')
+    const c = readCache('xcup_backtest_v2')
     const now = Date.now() / 1000
     if (!c || !c.next_update || now >= c.next_update) load()
     else timer = setTimeout(load, Math.min((c.next_update - now) * 1000 + 2000, 2 ** 31 - 1))
