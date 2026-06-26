@@ -87,7 +87,8 @@ export function useBacktest() {
       } catch (e) { if (alive) { setError(e.message); setLoading(false) } }
     }
     load()
-    return () => { alive = false; clearTimeout(timer) }
+    const interval = setInterval(load, 10 * 60 * 1000)   // re-chequea cada 10 min
+    return () => { alive = false; clearTimeout(timer); clearInterval(interval) }
   }, [])
 
   return { data, loading, error }
