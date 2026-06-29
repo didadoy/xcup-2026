@@ -13,6 +13,7 @@ Diseño pensado para muchos usuarios simultáneos:
 import asyncio
 import json
 import os
+import threading
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -118,11 +119,38 @@ def _compute(do_download_retrain: bool):
     _persist()    # guarda en disco para que un reinicio no vuelva a simular
 
 
+# Candado para que NUNCA se solapen dos refrescos (lo dispara tanto el
+# heartbeat como las peticiones entrantes; ver más abajo).
+_refresh_lock = threading.Lock()
+
+
+def _is_due() -> bool:
+    """¿Ya pasó la hora del próximo refresco programado?"""
+    return time.time() >= (STATE["next_refresh"] or 0)
+
+
+def _refresh_now(download: bool):
+    """Refresca una sola vez (con descarga+reentreno si download=True).
+    Pensado para correr en un hilo aparte vía asyncio.to_thread. Si ya hay
+    otro refresco en marcha, sale sin hacer nada."""
+    if not _refresh_lock.acquire(blocking=False):
+        return                       # ya hay uno en curso
+    STATE["refreshing"] = True
+    try:
+        _compute(download)
+    except Exception as e:
+        print("refresh error:", e)
+    finally:
+        STATE["refreshing"] = False
+        _refresh_lock.release()
+
+
 async def _refresh_loop():
     # Arranque: si hay resultado guardado en disco, se sirve YA (aunque esté
     # algo caducado) para que NADIE vea pantalla de carga. Si está caducado, se
-    # recalcula por detrás (los usuarios ven los datos viejos + "Actualizando…").
-    # Solo la PRIMERÍSIMA vez (sin nada guardado) hay que calcular antes de servir.
+    # descarga y recalcula por detrás (los usuarios ven los datos viejos +
+    # "Actualizando…"). Solo la PRIMERÍSIMA vez (sin nada guardado) hay que
+    # calcular antes de servir.
     persisted = _load_persisted()
     if persisted:
         STATE["projection"] = persisted["projection"]
@@ -130,34 +158,20 @@ async def _refresh_loop():
         STATE["last_refresh"] = persisted["projection"].get("last_updated")
         STATE["next_refresh"] = persisted["projection"].get("next_update")
         print("cache en disco cargada (sin simular en el arranque)")
-        if time.time() >= (STATE["next_refresh"] or 0):
-            STATE["refreshing"] = True
-            try:
-                await asyncio.to_thread(_compute, False)   # caducada → refresca por detrás
-            except Exception as e:
-                print("refresh-on-start error:", e)
-            finally:
-                STATE["refreshing"] = False
+        if _is_due():
+            await asyncio.to_thread(_refresh_now, True)   # caducada → descarga+refresca
     else:
-        STATE["refreshing"] = True
-        try:
-            await asyncio.to_thread(_compute, False)
-        except Exception as e:
-            print("initial compute error:", e)
-        finally:
-            STATE["refreshing"] = False
+        await asyncio.to_thread(_refresh_now, True)        # primera vez (descarga datos frescos)
 
+    # Heartbeat de respaldo: mientras el proceso siga vivo, comprueba cada par
+    # de minutos si toca refrescar. NO dependemos de un único sleep largo (en
+    # Render free el proceso se congela/reinicia y ese sleep nunca terminaba):
+    # el disparo fiable viene de las PETICIONES (ver /api/status y /api/health),
+    # que reviven el proceso y lanzan el refresco si ya toca.
     while True:
-        nxt = _next_slot()
-        wait = (nxt - datetime.now(timezone.utc)).total_seconds()
-        await asyncio.sleep(max(1.0, wait))
-        STATE["refreshing"] = True
-        try:
-            await asyncio.to_thread(_compute, True)    # descarga + reentreno
-        except Exception as e:
-            print("refresh error:", e)
-        finally:
-            STATE["refreshing"] = False
+        await asyncio.sleep(120)
+        if _is_due():
+            await asyncio.to_thread(_refresh_now, True)
 
 
 @asynccontextmanager
@@ -182,8 +196,19 @@ def get_backtest():
     return STATE["backtest"] or {"loading": True}
 
 
+def _kick_refresh_if_due():
+    """Si ya toca refrescar y nadie lo está haciendo, lanza el refresco en
+    segundo plano (descarga+reentreno) sin bloquear la respuesta. Esto es lo
+    que hace que la web se actualice de forma FIABLE en Render free: cada ping
+    del keep-alive o cada visita revive el proceso y dispara el recálculo en
+    cuanto pasa la franja horaria, sin depender de un temporizador interno."""
+    if _is_due() and not STATE["refreshing"]:
+        asyncio.create_task(asyncio.to_thread(_refresh_now, True))
+
+
 @app.get("/api/status")
-def status():
+async def status():
+    _kick_refresh_if_due()
     return {
         "last_refresh": STATE["last_refresh"],
         "next_refresh": STATE["next_refresh"],
@@ -202,5 +227,6 @@ def predict_match(team_a: str, team_b: str):
 
 
 @app.get("/api/health")
-def health():
+async def health():
+    _kick_refresh_if_due()   # el keep-alive pega aquí cada ~10 min → dispara refresco si toca
     return {"status": "ok", "ready": STATE["projection"] is not None}
