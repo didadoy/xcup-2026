@@ -39,19 +39,19 @@ export function useIsDesktop(breakpoint = 1024) {
 }
 
 export function useProjection() {
-  const [data, setData] = useState(() => readCache('xcup_projection_v2'))
-  const [loading, setLoading] = useState(() => !readCache('xcup_projection_v2'))
+  const [data, setData] = useState(() => readCache('xcup_projection_v3'))
+  const [loading, setLoading] = useState(() => !readCache('xcup_projection_v3'))
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
   const load = useCallback(async () => {
     try {
-      const cached = readCache('xcup_projection_v2')
+      const cached = readCache('xcup_projection_v3')
       if (!(await backendIsNewer(cached))) { setLoading(false); return }  // caché al día
       setRefreshing(true)
       const d = await api.projection()
       if (d && d.loading) { setTimeout(load, 3000); return }   // backend calculando
-      setData(d); writeCache('xcup_projection_v2', d)
+      setData(d); writeCache('xcup_projection_v3', d)
       setError(null); setLoading(false); setRefreshing(false)
     } catch (e) {
       setError(e.message); setLoading(false); setRefreshing(false)
@@ -69,8 +69,8 @@ export function useProjection() {
 }
 
 export function useBacktest() {
-  const [data, setData] = useState(() => readCache('xcup_backtest_v2'))
-  const [loading, setLoading] = useState(() => !readCache('xcup_backtest_v2'))
+  const [data, setData] = useState(() => readCache('xcup_backtest_v3'))
+  const [loading, setLoading] = useState(() => !readCache('xcup_backtest_v3'))
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -78,12 +78,12 @@ export function useBacktest() {
     let timer
     const load = async () => {
       try {
-        const cached = readCache('xcup_backtest_v2')
+        const cached = readCache('xcup_backtest_v3')
         if (!(await backendIsNewer(cached))) { if (alive) setLoading(false); return }
         const d = await api.backtest()
         if (!alive) return
         if (d && d.loading) { timer = setTimeout(load, 3000); return }
-        setData(d); writeCache('xcup_backtest_v2', d); setLoading(false)
+        setData(d); writeCache('xcup_backtest_v3', d); setLoading(false)
       } catch (e) { if (alive) { setError(e.message); setLoading(false) } }
     }
     load()
