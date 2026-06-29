@@ -88,6 +88,9 @@ export default function App() {
                 {' '}{data?.remaining_group_matches} simulados. En cada cruce <strong>avanza el favorito</strong> (›). Pulsa un partido para la predicción.
                 <span className="ml-1 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> clasificado</span>
                 <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> depende</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-400 font-black">✓</span> cruce acertado</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-rose-500 font-black">✗</span> cruce fallado</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-[3px] border border-emerald-500/70 bg-emerald-500/10 inline-block" /> jugado</span>
               </span>
             </div>
           </div>

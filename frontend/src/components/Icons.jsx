@@ -79,23 +79,6 @@ export function QualDot({ status, className = '' }) {
   return <span className={`w-[7px] h-[7px] flex-shrink-0 ${className}`} />
 }
 
-// Leyenda de símbolos del cuadro (aciertos, jugados, clasificados).
-export function BracketLegend({ className = '' }) {
-  return (
-    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/55 ${className}`}>
-      <span className="flex items-center gap-1"><span className="text-emerald-400 font-black">✓</span> cruce acertado</span>
-      <span className="flex items-center gap-1"><span className="text-rose-500 font-black">✗</span> cruce fallado</span>
-      <span className="flex items-center gap-1">
-        <span className="w-3 h-3 rounded-[3px] border border-emerald-500/70 bg-emerald-500/10 inline-block flex-shrink-0" />
-        partido jugado
-      </span>
-      <span className="flex items-center gap-1">
-        <span className="w-[7px] h-[7px] rounded-full bg-emerald-400 inline-block flex-shrink-0" /> clasificado
-      </span>
-    </div>
-  )
-}
-
 export function TargetIcon({ size = 20, className = '' }) {
   return (
     <svg {...base(size)} className={className}>

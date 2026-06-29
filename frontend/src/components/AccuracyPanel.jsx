@@ -23,7 +23,7 @@ export default function AccuracyPanel() {
       <div className="rounded-xl bg-blue-500/8 border border-blue-500/20 px-3 py-2.5 text-[11px] sm:text-xs text-blue-200/90 mb-4">
         <strong>Validación honesta (out-of-sample).</strong> Se reentrenó el modelo con {d.train_matches?.toLocaleString('es')} partidos
         {' '}<strong>excluyendo el Mundial 2026</strong> (sin fuga de datos) y se predijeron los {d.test_matches} partidos
-        de grupos ya jugados. Así se mide cómo lo haría con partidos que nunca vio.
+        del Mundial 2026 ya jugados (grupos y eliminatorias). Se actualiza solo según se juegan. Así se mide cómo lo haría con partidos que nunca vio.
       </div>
 
       {/* Métricas */}

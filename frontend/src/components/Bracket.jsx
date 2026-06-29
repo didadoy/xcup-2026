@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
-import { TrophyIcon, QualDot, BracketLegend } from './Icons.jsx'
+import { TrophyIcon, QualDot } from './Icons.jsx'
 
 // ── Geometría ───────────────────────────────────────────────────────────
 const CARD_W = 158
@@ -194,9 +194,8 @@ export default function Bracket({ bracket, selectedKey, onSelect }) {
 
   return (
     <div ref={wrapRef} className="relative w-full h-full overflow-auto">
-      {/* Leyenda + control de zoom */}
-      <div className="sticky top-0 z-20 flex justify-between items-start gap-2 pointer-events-none">
-        <BracketLegend className="pointer-events-auto glass rounded-lg px-2.5 py-1.5" />
+      {/* Control de zoom */}
+      <div className="sticky top-0 z-20 flex justify-end pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg glass px-1 py-1 text-white/70">
           <button onClick={() => setZoom(z => Math.max(0.5, +(z - 0.15).toFixed(2)))}
             aria-label="Alejar" className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-base leading-none">−</button>

@@ -2,8 +2,9 @@
 Backtest HONESTO (out-of-sample) del modelo contra el Mundial 2026 real.
 
 Clave: se reentrena EXCLUYENDO los partidos del Mundial 2026, así que el
-modelo NO ha visto ningún resultado que luego predice. Después predice los
-48 partidos de grupos ya jugados y se compara con la realidad.
+modelo NO ha visto ningún resultado que luego predice. Después predice TODOS
+los partidos del Mundial 2026 ya jugados (grupos y eliminatorias) y se compara
+con la realidad. La muestra crece sola conforme se juegan partidos nuevos.
 
 Métricas:
 - Acierto de resultado (1X2)  vs baselines (siempre local / mejor Elo)

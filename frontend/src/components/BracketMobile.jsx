@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
-import { TrophyIcon, QualDot, BracketLegend } from './Icons.jsx'
+import { TrophyIcon, QualDot } from './Icons.jsx'
 
 const ROUNDS = [
   { key: 'r32', label: '16avos' },
