@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
-import { TrophyIcon, QualDot } from './Icons.jsx'
+import { TrophyIcon, QualDot, BracketLegend } from './Icons.jsx'
 
 const ROUNDS = [
   { key: 'r32', label: '16avos' },
@@ -96,6 +96,7 @@ export default function BracketMobile({ bracket, champion, selectedKey, onSelect
       <div className="space-y-2 mt-3">
         {matches.map((m, i) => {
           const key = `M-${round}-${i}`
+          const played = m.a?.played || m.b?.played
           return (
             <button key={key}
               onClick={() => onSelect(m.a?.team, m.b?.team, key)}
@@ -103,7 +104,9 @@ export default function BracketMobile({ bracket, champion, selectedKey, onSelect
               className={`w-full rounded-xl border overflow-hidden text-left transition-colors ${
                 selectedKey === key
                   ? 'border-blue-500 bg-blue-950/40'
-                  : 'border-white/12 bg-white/[0.04] active:bg-white/[0.07]'}`}>
+                  : played
+                    ? 'border-emerald-500/70 bg-emerald-500/[0.07]'
+                    : 'border-white/12 bg-white/[0.04] active:bg-white/[0.07]'}`}>
               <Row slot={m.a} top />
               <Row slot={m.b} />
             </button>

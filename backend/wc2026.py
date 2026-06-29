@@ -359,14 +359,19 @@ def project(n: int = 40000, force: bool = False):
     bracket = {}
     cur = list(real_entrants) if use_real else list(entrants)
     cur_qual = [qpct(t) for t in cur] if use_real else list(entry_qual)
+    # ¿el equipo llegó a este hueco por la REALIDAD? En 16avos sí (grupos
+    # cerrados); en rondas siguientes solo si el partido que lo trajo se jugó.
+    # Solo los cruces con ambos equipos reales son "determinados" → llevan ✓/✗.
+    cur_real = [True] * len(cur) if use_real else [False] * len(cur)
     pred_cur = list(entrants)          # cadena PREDICHA (para marcar acierto de cruce)
     for name in ("r32", "r16", "qf", "sf", "final"):
-        slots, winners, wq, pred_next = [], [], [], []
+        slots, winners, wq, pred_next, real_next = [], [], [], [], []
         for i in range(0, len(cur), 2):
             a, b = cur[i], cur[i + 1]
             pa_, pb_ = pred_cur[i], pred_cur[i + 1]
+            determined = cur_real[i] and cur_real[i + 1]   # cruce real ya fijado
             hit = None
-            if use_real and a and b and pa_ and pb_:
+            if determined and a and b and pa_ and pb_:
                 hit = "hit" if {a, b} == {pa_, pb_} else "wrong"
             r = ko_res.get(frozenset((a, b))) if (a and b) else None
             played = bool(r and r.get("winner"))
@@ -384,12 +389,13 @@ def project(n: int = 40000, force: bool = False):
                           "status": status_map.get(b),
                           "real": hit, "played": played, "score": sb_})
             winners.append(winner); wq.append(qpct(winner))
+            real_next.append(played)   # el ganador es REAL solo si el partido se jugó
             if pa_ and pb_:
                 pred_next.append(pa_ if M.advance_prob(pa_, pb_) >= 0.5 else pb_)
             else:
                 pred_next.append(pa_ or pb_)
         bracket[name] = slots
-        cur, cur_qual, pred_cur = winners, wq, pred_next
+        cur, cur_qual, cur_real, pred_cur = winners, wq, real_next, pred_next
     champion = cur[0] if cur else None
 
     # tabla de favoritos

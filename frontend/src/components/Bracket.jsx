@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
-import { TrophyIcon, QualDot } from './Icons.jsx'
+import { TrophyIcon, QualDot, BracketLegend } from './Icons.jsx'
 
 // ── Geometría ───────────────────────────────────────────────────────────
 const CARD_W = 158
@@ -77,16 +77,19 @@ function SlotRow({ slot, top }) {
 }
 
 function MatchCard({ a, b, x, centerY, selected, onClick }) {
+  const played = a?.played || b?.played
   return (
     <button
       onClick={onClick}
-      title={`${teamLabel(a?.team)} vs ${teamLabel(b?.team)} — ver predicción`}
+      title={`${teamLabel(a?.team)} vs ${teamLabel(b?.team)}${played ? ' — ya jugado' : ' — ver predicción'}`}
       aria-label={`Predicción ${teamLabel(a?.team)} contra ${teamLabel(b?.team)}`}
       className={`absolute rounded-xl border overflow-hidden text-left transition-all duration-150
         hover:scale-[1.04] hover:z-20 active:scale-100
         ${selected
           ? 'border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.45)] bg-blue-950/40 z-10'
-          : 'border-white/12 bg-white/[0.04] hover:border-white/30 hover:bg-white/[0.07]'}`}
+          : played
+            ? 'border-emerald-500/70 bg-emerald-500/[0.07] hover:border-emerald-400'
+            : 'border-white/12 bg-white/[0.04] hover:border-white/30 hover:bg-white/[0.07]'}`}
       style={{ left: x, top: centerY - CARD_H / 2, width: CARD_W, height: CARD_H }}
     >
       <SlotRow slot={a} top />
@@ -191,8 +194,9 @@ export default function Bracket({ bracket, selectedKey, onSelect }) {
 
   return (
     <div ref={wrapRef} className="relative w-full h-full overflow-auto">
-      {/* Control de zoom */}
-      <div className="sticky top-0 z-20 flex justify-end pointer-events-none">
+      {/* Leyenda + control de zoom */}
+      <div className="sticky top-0 z-20 flex justify-between items-start gap-2 pointer-events-none">
+        <BracketLegend className="pointer-events-auto glass rounded-lg px-2.5 py-1.5" />
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg glass px-1 py-1 text-white/70">
           <button onClick={() => setZoom(z => Math.max(0.5, +(z - 0.15).toFixed(2)))}
             aria-label="Alejar" className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-base leading-none">−</button>
@@ -219,7 +223,11 @@ export default function Bracket({ bracket, selectedKey, onSelect }) {
           onClick={() => final?.length === 2 && onSelect(final[0]?.team, final[1]?.team, 'FINAL')}
           aria-label="Predicción de la final proyectada"
           className={`w-[170px] rounded-xl border overflow-hidden mb-4 transition-all hover:scale-[1.03]
-            ${selectedKey === 'FINAL' ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)]' : 'border-amber-500/30 bg-amber-500/[0.04]'}`}>
+            ${selectedKey === 'FINAL'
+              ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)]'
+              : final?.[0]?.played
+                ? 'border-emerald-500/70 bg-emerald-500/[0.07]'
+                : 'border-amber-500/30 bg-amber-500/[0.04]'}`}>
           <SlotRow slot={final?.[0]} top />
           <SlotRow slot={final?.[1]} />
         </button>
