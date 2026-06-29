@@ -40,6 +40,7 @@ function SlotRow({ slot, top }) {
   const prob = slot?.prob
   const isLoser = slot && slot.win === false           // pierde el cruce → atenuado
   const isWinner = slot && slot.win === true
+  const real = slot?.real                              // hit | wrong | out | null
   return (
     <div className={`flex items-center gap-1.5 px-2 h-[31px] ${top ? '' : 'border-t border-white/[0.07]'} ${isLoser ? 'opacity-45' : ''}`}>
       <QualDot status={slot?.status} />
@@ -56,6 +57,14 @@ function SlotRow({ slot, top }) {
           isWinner ? 'text-emerald-300 bg-emerald-500/10' : 'text-white/45 bg-white/5'}`}>
           {prob}%
         </span>
+      )}
+      {real === 'hit' && (
+        <span className="text-emerald-400 text-[12px] font-black flex-shrink-0 leading-none"
+          title="Cruce acertado" aria-label="acierto">✓</span>
+      )}
+      {(real === 'wrong' || real === 'out') && (
+        <span className="text-rose-500 text-[12px] font-black flex-shrink-0 leading-none"
+          title="Cruce no acertado" aria-label="fallo">✗</span>
       )}
     </div>
   )

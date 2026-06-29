@@ -15,6 +15,7 @@ function Row({ slot, top }) {
   const flag = team ? getFlagUrl(team, 40) : null
   const isLoser = slot && slot.win === false
   const isWinner = slot && slot.win === true
+  const real = slot?.real                              // hit | wrong | out | null
   return (
     <div className={`flex items-center gap-2 px-3 h-11 ${top ? '' : 'border-t border-white/[0.07]'} ${isLoser ? 'opacity-45' : ''}`}>
       <QualDot status={slot?.status} />
@@ -30,6 +31,14 @@ function Row({ slot, top }) {
           isWinner ? 'text-emerald-300 bg-emerald-500/10' : 'text-white/45 bg-white/5'}`}>
           {slot.prob}%
         </span>
+      )}
+      {real === 'hit' && (
+        <span className="text-emerald-400 text-sm font-black flex-shrink-0 leading-none"
+          title="Cruce acertado" aria-label="acierto">✓</span>
+      )}
+      {(real === 'wrong' || real === 'out') && (
+        <span className="text-rose-500 text-sm font-black flex-shrink-0 leading-none"
+          title="Cruce no acertado" aria-label="fallo">✗</span>
       )}
     </div>
   )
