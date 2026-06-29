@@ -78,6 +78,8 @@ def _load_matches():
             h, a = _fix(r["home_team"]), _fix(r["away_team"])
             if h not in TEAM_GROUP or a not in TEAM_GROUP:
                 continue
+            if TEAM_GROUP[h] != TEAM_GROUP[a]:
+                continue          # solo partidos DE GRUPO; excluye eliminatorias
             if r["home_score"] in ("NA", ""):
                 remaining.append((h, a))
             else:
@@ -106,6 +108,8 @@ def _load_fixtures():
             h, a = _fix(r["home_team"]), _fix(r["away_team"])
             if h not in TEAM_GROUP or a not in TEAM_GROUP:
                 continue
+            if TEAM_GROUP[h] != TEAM_GROUP[a]:
+                continue          # solo partidos DE GRUPO; excluye eliminatorias
             played = r["home_score"] not in ("NA", "")
             out.append({
                 "date": r["date"], "home": h, "away": a,
@@ -333,6 +337,8 @@ def project(n: int = 40000, force: bool = False):
         if clinched_top2(t, TEAM_GROUP[t], base):
             return "in"
         c = qualify.get(t, 0)
+        if c >= n:          # clasifica en el 100% de las simulaciones → asegurado
+            return "in"     # (cubre al mejor 3º cuando ya está matemáticamente dentro)
         return "maybe" if c > 0 else "out"
     status_map = {t: _qstatus(t) for t in TEAM_GROUP}
 
