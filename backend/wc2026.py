@@ -394,10 +394,17 @@ def project(n: int = 40000, force: bool = False):
         for row in rows:
             row["status"] = status_map.get(row["team"])
 
+    # acierto del cuadro: compara la predicción con las eliminatorias REALES
+    real_ko = _load_knockout_rounds()
+    _annotate_real(bracket, real_ko)
+    champion_real = _final_winner(real_ko)
+
     data = {
         "simulations": n,
         "bracket": bracket,
         "champion": champion,
+        "champion_real": champion_real,
+        "champion_hit": (champion_real == champion) if champion_real else None,
         "favourites": teams_tbl,
         "groups": groups,
         "group_fixtures": group_fixtures(),
@@ -406,6 +413,77 @@ def project(n: int = 40000, force: bool = False):
     }
     _CACHE["n"] = n; _CACHE["data"] = data
     return data
+
+
+# ── Comparación predicción vs eliminatorias REALES ──────────────────────
+# Los partidos de esta fecha en adelante son eliminatorias (la fase de grupos
+# del Mundial 2026 acaba el 27/6). Sirve para separarlas de los partidos de
+# grupo y agruparlas por ronda.
+KO_CUTOFF = "2026-06-28"
+
+
+def _load_knockout_rounds():
+    """Eliminatorias REALES del dataset agrupadas por ronda, en orden de fecha
+    (16 partidos de 16avos → 8 de octavos → 4 cuartos → 2 semis → final).
+    Devuelve {ronda: [ {home, away, played, hs, as}, ... ]}."""
+    ko = []
+    with open(CSV_PATH, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if r["tournament"] != "FIFA World Cup" or r["date"] < KO_CUTOFF:
+                continue
+            h, a = _fix(r["home_team"]), _fix(r["away_team"])
+            if h not in TEAM_GROUP or a not in TEAM_GROUP:
+                continue
+            played = r["home_score"] not in ("NA", "")
+            ko.append({
+                "date": r["date"], "home": h, "away": a, "played": played,
+                "hs": int(r["home_score"]) if played else None,
+                "as": int(r["away_score"]) if played else None,
+            })
+    ko.sort(key=lambda m: m["date"])
+    rounds, i = {}, 0
+    for name, cnt in (("r32", 16), ("r16", 8), ("qf", 4), ("sf", 2)):
+        rounds[name] = ko[i:i + cnt]; i += cnt
+    rest = ko[i:]                       # 3er puesto + final → la final es la última
+    rounds["final"] = [max(rest, key=lambda m: m["date"])] if rest else []
+    return rounds
+
+
+def _final_winner(real_ko):
+    """Campeón REAL si la final ya se jugó con resultado decisivo, si no None."""
+    fin = real_ko.get("final", [])
+    if not fin:
+        return None
+    m = fin[0]
+    if m["played"] and m["hs"] != m["as"]:
+        return m["home"] if m["hs"] > m["as"] else m["away"]
+    return None
+
+
+def _annotate_real(bracket, real_ko):
+    """Añade a cada hueco del cuadro PREDICHO un campo `real`:
+       'hit'   la llave (cruce) coincide con la real,
+       'wrong' el equipo llegó a esa ronda pero contra otro rival,
+       'out'   el equipo no llegó a esa ronda,
+       None    esa ronda aún no está determinada en la realidad."""
+    for name in ("r32", "r16", "qf", "sf", "final"):
+        slots = bracket.get(name, [])
+        bucket = real_ko.get(name, [])
+        opp = {}
+        for m in bucket:
+            opp[m["home"]] = m["away"]; opp[m["away"]] = m["home"]
+        known = len(bucket) > 0
+        for i in range(0, len(slots) - 1, 2):
+            a, b = slots[i], slots[i + 1]
+            for s, partner in ((a, b), (b, a)):
+                t = s.get("team")
+                if not t or not known:
+                    s["real"] = None
+                elif t in opp:
+                    s["real"] = "hit" if opp[t] == partner.get("team") else "wrong"
+                else:
+                    s["real"] = "out"
+    return bracket
 
 
 def current_group_tables():
