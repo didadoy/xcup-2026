@@ -52,7 +52,13 @@ function SlotRow({ slot, top }) {
         {teamLabel(team)}
       </span>
       {isWinner && <span className="text-emerald-400 text-[11px] flex-shrink-0" aria-label="avanza">›</span>}
-      {prob != null && team && (
+      {slot?.played && slot?.score != null ? (
+        <span className={`text-[11px] font-bold tabular-nums flex-shrink-0 px-1 py-0.5 rounded ${
+          isWinner ? 'text-emerald-200 bg-emerald-500/20' : 'text-white/55 bg-white/10'}`}
+          title="Resultado real">
+          {slot.score}
+        </span>
+      ) : prob != null && team && (
         <span className={`text-[10px] tabular-nums flex-shrink-0 px-1 py-0.5 rounded ${
           isWinner ? 'text-emerald-300 bg-emerald-500/10' : 'text-white/45 bg-white/5'}`}>
           {prob}%

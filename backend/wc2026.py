@@ -342,37 +342,54 @@ def project(n: int = 40000, force: bool = False):
         return "maybe" if c > 0 else "out"
     status_map = {t: _qstatus(t) for t in TEAM_GROUP}
 
-    # 32 equipos de entrada — asignación uno-a-uno óptima para que NINGÚN
-    # equipo se repita (cada selección ocupa un solo hueco de 16avos).
+    # 32 equipos de entrada PREDICHOS — asignación uno-a-uno óptima para que
+    # NINGÚN equipo se repita (cada selección ocupa un solo hueco de 16avos).
     entrants, entry_qual = assign_entrants(pos_counts["r32"], n)
 
-    # Cuadro COHERENTE: avanza el favorito de cada cruce, y ese mismo equipo
-    # aparece en la ronda siguiente (sin incoherencias entre rondas).
+    # Cuadro a mostrar: si la fase de grupos terminó, partimos de los 16avos
+    # REALES (cruces oficiales) y avanzamos con el RESULTADO real donde ya se
+    # jugó, o con el favorito del modelo donde falta. Cada hueco marca si el
+    # cruce coincide con nuestra predicción (real='hit'/'wrong') y si ya se jugó
+    # (played + score). Si la fase de grupos no terminó, se usa el cuadro simulado.
+    real_entrants = _real_r32_entrants()
+    ko_res = _knockout_results()
+    use_real = real_entrants is not None
+    qpct = lambda t: round(qualify.get(t, 0) / n * 100) if t else None
+
     bracket = {}
-    cur = list(entrants)
-    cur_meta = [{"qual": entry_qual[i]} for i in range(32)]
+    cur = list(real_entrants) if use_real else list(entrants)
+    cur_qual = [qpct(t) for t in cur] if use_real else list(entry_qual)
+    pred_cur = list(entrants)          # cadena PREDICHA (para marcar acierto de cruce)
     for name in ("r32", "r16", "qf", "sf", "final"):
-        slots, winners, wmeta = [], [], []
+        slots, winners, wq, pred_next = [], [], [], []
         for i in range(0, len(cur), 2):
             a, b = cur[i], cur[i + 1]
-            if a and b:
-                pa = M.advance_prob(a, b)
-                a_adv = pa >= 0.5
-                slots.append({"team": a, "prob": round(pa * 100), "win": a_adv,
-                              "qual": cur_meta[i].get("qual"), "status": status_map.get(a)})
-                slots.append({"team": b, "prob": round((1 - pa) * 100), "win": not a_adv,
-                              "qual": cur_meta[i + 1].get("qual"), "status": status_map.get(b)})
-                winners.append(a if a_adv else b)
-                wmeta.append({})
+            pa_, pb_ = pred_cur[i], pred_cur[i + 1]
+            hit = None
+            if use_real and a and b and pa_ and pb_:
+                hit = "hit" if {a, b} == {pa_, pb_} else "wrong"
+            r = ko_res.get(frozenset((a, b))) if (a and b) else None
+            played = bool(r and r.get("winner"))
+            if played:
+                winner, sa_, sb_ = r["winner"], r.get(a), r.get(b)
             else:
-                t = a or b
-                slots.append({"team": a, "prob": None, "win": bool(a),
-                              "qual": cur_meta[i].get("qual"), "status": status_map.get(a)})
-                slots.append({"team": b, "prob": None, "win": bool(b),
-                              "qual": cur_meta[i + 1].get("qual"), "status": status_map.get(b)})
-                winners.append(t); wmeta.append({})
+                sa_ = sb_ = None
+                winner = (a if M.advance_prob(a, b) >= 0.5 else b) if (a and b) else (a or b)
+            prob = round(M.advance_prob(a, b) * 100) if (a and b) else None
+            slots.append({"team": a, "prob": prob, "win": bool(a) and a == winner,
+                          "qual": cur_qual[i], "status": status_map.get(a),
+                          "real": hit, "played": played, "score": sa_})
+            slots.append({"team": b, "prob": (100 - prob) if prob is not None else None,
+                          "win": bool(b) and b == winner, "qual": cur_qual[i + 1],
+                          "status": status_map.get(b),
+                          "real": hit, "played": played, "score": sb_})
+            winners.append(winner); wq.append(qpct(winner))
+            if pa_ and pb_:
+                pred_next.append(pa_ if M.advance_prob(pa_, pb_) >= 0.5 else pb_)
+            else:
+                pred_next.append(pa_ or pb_)
         bracket[name] = slots
-        cur, cur_meta = winners, wmeta
+        cur, cur_qual, pred_cur = winners, wq, pred_next
     champion = cur[0] if cur else None
 
     # tabla de favoritos
@@ -394,10 +411,8 @@ def project(n: int = 40000, force: bool = False):
         for row in rows:
             row["status"] = status_map.get(row["team"])
 
-    # acierto del cuadro: compara la predicción con las eliminatorias REALES
-    real_ko = _load_knockout_rounds()
-    _annotate_real(bracket, real_ko)
-    champion_real = _final_winner(real_ko)
+    # campeón REAL si la final ya se jugó (para marcarlo cuando llegue el día)
+    champion_real = _final_winner(_load_knockout_rounds())
 
     data = {
         "simulations": n,
@@ -460,30 +475,62 @@ def _final_winner(real_ko):
     return None
 
 
-def _annotate_real(bracket, real_ko):
-    """Añade a cada hueco del cuadro PREDICHO un campo `real`:
-       'hit'   la llave (cruce) coincide con la real,
-       'wrong' el equipo llegó a esa ronda pero contra otro rival,
-       'out'   el equipo no llegó a esa ronda,
-       None    esa ronda aún no está determinada en la realidad."""
-    for name in ("r32", "r16", "qf", "sf", "final"):
-        slots = bracket.get(name, [])
-        bucket = real_ko.get(name, [])
-        opp = {}
-        for m in bucket:
-            opp[m["home"]] = m["away"]; opp[m["away"]] = m["home"]
-        known = len(bucket) > 0
-        for i in range(0, len(slots) - 1, 2):
-            a, b = slots[i], slots[i + 1]
-            for s, partner in ((a, b), (b, a)):
-                t = s.get("team")
-                if not t or not known:
-                    s["real"] = None
-                elif t in opp:
-                    s["real"] = "hit" if opp[t] == partner.get("team") else "wrong"
-                else:
-                    s["real"] = "out"
-    return bracket
+def _real_r32_entrants():
+    """Los 32 equipos REALES de 16avos colocados en el orden de cuadro
+    (R32_ORDER), para mostrar los cruces de verdad. Devuelve None si la fase de
+    grupos no ha terminado o no se puede resolver con fiabilidad (entonces se usa
+    el cuadro simulado de siempre)."""
+    if REMAINING:                      # grupos sin terminar
+        return None
+    r32 = _load_knockout_rounds().get("r32", [])
+    if len(r32) < 16:                  # aún no hay 16avos en el dataset
+        return None
+    st = base_standings()
+    firsts, seconds = {}, {}
+    for g, teams in GROUPS.items():
+        o = sorted(teams, key=lambda t: (st[t]["pts"], st[t]["gf"] - st[t]["ga"], st[t]["gf"]),
+                   reverse=True)
+        firsts[g], seconds[g] = o[0], o[1]
+    opp = {}                           # rival real de cada equipo en 16avos
+    for m in r32:
+        opp[m["home"]] = m["away"]; opp[m["away"]] = m["home"]
+
+    def anchor(slot):                  # 1X / 2X se resuelven directos; 3:NN no
+        if slot.startswith("1"): return firsts.get(slot[1])
+        if slot.startswith("2"): return seconds.get(slot[1])
+        return None
+
+    out = []
+    for mid in R32_ORDER:
+        sa, sb = R32_SLOTS[mid]
+        anc = anchor(sa) or anchor(sb)        # el lado no-tercero ancla el cruce
+        if not anc or anc not in opp:
+            return None
+        other = opp[anc]                       # el rival real (incl. el tercero)
+        out += ([anc, other] if anchor(sa) else [other, anc])
+    return out if len(set(out)) == 32 else None
+
+
+def _knockout_results():
+    """Resultados de eliminatoria ya jugados, por par de equipos:
+       frozenset({a,b}) -> {'winner': equipo|None, a: goles_a, b: goles_b}.
+    Sirve para marcar partidos jugados y quién pasó."""
+    res = {}
+    with open(CSV_PATH, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if r["tournament"] != "FIFA World Cup" or r["date"] < KO_CUTOFF:
+                continue
+            h, a = _fix(r["home_team"]), _fix(r["away_team"])
+            if h not in TEAM_GROUP or a not in TEAM_GROUP or TEAM_GROUP[h] == TEAM_GROUP[a]:
+                continue
+            if r["home_score"] in ("NA", ""):
+                continue
+            hs, as_ = int(r["home_score"]), int(r["away_score"])
+            res[frozenset((h, a))] = {
+                "winner": h if hs > as_ else (a if as_ > hs else None),
+                h: hs, a: as_,
+            }
+    return res
 
 
 def current_group_tables():
