@@ -43,6 +43,23 @@ export default function App() {
   }
   const panelOpen = !!sel && view === 'bracket'
 
+  // Progreso de las eliminatorias (partidos del cuadro ya jugados de verdad)
+  const groupsDone = data?.remaining_group_matches === 0
+  const koRounds = ['r32', 'r16', 'qf', 'sf', 'final']
+  const koPlayed = data?.bracket
+    ? koRounds.reduce((n, r) => n + (data.bracket[r]?.reduce((m, s, i) => m + (i % 2 === 0 && s.played ? 1 : 0), 0) || 0), 0)
+    : 0
+  const koTotal = 31
+
+  // Con los grupos cerrados, el puntito de "clasificado" ya no aporta (todos
+  // lo están): se oculta para dejar el cuadro más limpio.
+  const displayBracket = (() => {
+    if (!data?.bracket || !groupsDone) return data?.bracket
+    const out = {}
+    for (const r of koRounds) out[r] = (data.bracket[r] || []).map(s => (s ? { ...s, status: null } : s))
+    return out
+  })()
+
   return (
     <div className="min-h-screen flex flex-col noise"
       style={{ background: 'linear-gradient(160deg,#04060f 0%,#060914 60%,#080c1a 100%)' }}>
@@ -84,13 +101,24 @@ export default function App() {
             <div className="flex items-start sm:items-center gap-2.5 px-3 py-2 rounded-lg bg-blue-500/8 border border-blue-500/20 text-[11px] text-blue-200/90">
               <SignalIcon size={16} className="text-blue-300 flex-shrink-0 mt-0.5 sm:mt-0" />
               <span>
-                <strong>Proyección con datos reales</strong> · {data?.played_group_matches} jugados,
-                {' '}{data?.remaining_group_matches} simulados. En cada cruce <strong>avanza el favorito</strong> (›). Pulsa un partido para la predicción.
-                <span className="ml-1 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> clasificado</span>
-                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> depende</span>
-                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-400 font-black">✓</span> cruce acertado</span>
+                {groupsDone ? (
+                  <><strong>Cuadro real vs predicho</strong> · eliminatorias: <strong>{koPlayed}/{koTotal}</strong> partidos jugados.
+                  {' '}Los cruces y resultados son los <strong>reales</strong>; donde aún no se ha jugado, avanza el favorito del modelo (›).</>
+                ) : (
+                  <><strong>Proyección con datos reales</strong> · {data?.played_group_matches} jugados,
+                  {' '}{data?.remaining_group_matches} simulados. En cada cruce <strong>avanza el favorito</strong> (›).</>
+                )}
+                {' '}Pulsa un partido para la predicción.
+                <span className="ml-1 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-400 font-black">✓</span> cruce acertado</span>
                 <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-rose-500 font-black">✗</span> cruce fallado</span>
                 <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-[3px] border border-emerald-500/70 bg-emerald-500/10 inline-block" /> jugado</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-200 font-bold">ᵖ</span> penaltis</span>
+                {!groupsDone && (
+                  <>
+                    <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> clasificado</span>
+                    <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> depende</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -108,8 +136,8 @@ export default function App() {
             <div className="h-full overflow-hidden">
               {loading ? <Loading /> : (
                 isDesktop
-                  ? <div className="h-full px-4 pt-2 pb-3"><Bracket bracket={data?.bracket} selectedKey={sel?.key} onSelect={onSelect} /></div>
-                  : <div className="h-full overflow-auto pt-2"><BracketMobile bracket={data?.bracket} champion={data?.champion} selectedKey={sel?.key} onSelect={onSelect} /></div>
+                  ? <div className="h-full px-4 pt-2 pb-3"><Bracket bracket={displayBracket} selectedKey={sel?.key} onSelect={onSelect} /></div>
+                  : <div className="h-full overflow-auto pt-2"><BracketMobile bracket={displayBracket} champion={data?.champion} selectedKey={sel?.key} onSelect={onSelect} /></div>
               )}
             </div>
           )}

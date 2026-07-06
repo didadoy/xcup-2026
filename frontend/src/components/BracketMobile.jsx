@@ -29,8 +29,8 @@ function Row({ slot, top }) {
       {slot?.played && slot?.score != null ? (
         <span className={`text-[12px] font-bold tabular-nums flex-shrink-0 px-1.5 py-0.5 rounded ${
           isWinner ? 'text-emerald-200 bg-emerald-500/20' : 'text-white/55 bg-white/10'}`}
-          title="Resultado real">
-          {slot.score}
+          title={slot.pens ? 'Resultado real — decidido en penaltis' : 'Resultado real'}>
+          {slot.score}{slot.pens && isWinner ? ' ᵖ' : ''}
         </span>
       ) : slot?.prob != null && team && (
         <span className={`text-[11px] tabular-nums flex-shrink-0 px-1.5 py-0.5 rounded ${

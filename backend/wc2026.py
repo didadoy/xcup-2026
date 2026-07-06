@@ -375,6 +375,7 @@ def project(n: int = 40000, force: bool = False):
                 hit = "hit" if {a, b} == {pa_, pb_} else "wrong"
             r = ko_res.get(frozenset((a, b))) if (a and b) else None
             played = bool(r and r.get("winner"))
+            pens = bool(r and r.get("pens")) if played else False
             if played:
                 winner, sa_, sb_ = r["winner"], r.get(a), r.get(b)
             else:
@@ -383,11 +384,11 @@ def project(n: int = 40000, force: bool = False):
             prob = round(M.advance_prob(a, b) * 100) if (a and b) else None
             slots.append({"team": a, "prob": prob, "win": bool(a) and a == winner,
                           "qual": cur_qual[i], "status": status_map.get(a),
-                          "real": hit, "played": played, "score": sa_})
+                          "real": hit, "played": played, "score": sa_, "pens": pens})
             slots.append({"team": b, "prob": (100 - prob) if prob is not None else None,
                           "win": bool(b) and b == winner, "qual": cur_qual[i + 1],
                           "status": status_map.get(b),
-                          "real": hit, "played": played, "score": sb_})
+                          "real": hit, "played": played, "score": sb_, "pens": pens})
             winners.append(winner); wq.append(qpct(winner))
             real_next.append(played)   # el ganador es REAL solo si el partido se jugó
             if pa_ and pb_:
@@ -519,23 +520,32 @@ def _real_r32_entrants():
 
 def _knockout_results():
     """Resultados de eliminatoria ya jugados, por par de equipos:
-       frozenset({a,b}) -> {'winner': equipo|None, a: goles_a, b: goles_b}.
-    Sirve para marcar partidos jugados y quién pasó."""
+       frozenset({a,b}) -> {'winner': equipo|None, 'pens': bool, a: goles, b: goles}.
+    Un empate se decidió por PENALTIS: el ganador se infiere de las rondas
+    siguientes (el equipo que vuelve a aparecer en un cruce posterior es el que
+    pasó). Si la ronda siguiente aún no está en el dataset, queda winner=None."""
+    rounds = _load_knockout_rounds()
+    order = ["r32", "r16", "qf", "sf", "final"]
+    # equipos presentes en los cruces de cada ronda (jugados o programados)
+    present = {name: {t for m in rounds.get(name, []) for t in (m["home"], m["away"])}
+               for name in order}
     res = {}
-    with open(CSV_PATH, encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            if r["tournament"] != "FIFA World Cup" or r["date"] < KO_CUTOFF:
+    for ri, name in enumerate(order):
+        for m in rounds.get(name, []):
+            if not m["played"]:
                 continue
-            h, a = _fix(r["home_team"]), _fix(r["away_team"])
-            if h not in TEAM_GROUP or a not in TEAM_GROUP or TEAM_GROUP[h] == TEAM_GROUP[a]:
-                continue
-            if r["home_score"] in ("NA", ""):
-                continue
-            hs, as_ = int(r["home_score"]), int(r["away_score"])
-            res[frozenset((h, a))] = {
-                "winner": h if hs > as_ else (a if as_ > hs else None),
-                h: hs, a: as_,
-            }
+            h, a, hs, as_ = m["home"], m["away"], m["hs"], m["as"]
+            winner, pens = None, False
+            if hs != as_:
+                winner = h if hs > as_ else a
+            else:
+                pens = True
+                for later in order[ri + 1:]:
+                    if h in present[later]:
+                        winner = h; break
+                    if a in present[later]:
+                        winner = a; break
+            res[frozenset((h, a))] = {"winner": winner, "pens": pens, h: hs, a: as_}
     return res
 
 
