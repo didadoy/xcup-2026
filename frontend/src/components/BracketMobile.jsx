@@ -1,16 +1,11 @@
 import { useState } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
 import { TrophyIcon, QualDot } from './Icons.jsx'
+import { useI18n } from '../i18n.jsx'
 
-const ROUNDS = [
-  { key: 'r32', label: '16avos' },
-  { key: 'r16', label: 'Octavos' },
-  { key: 'qf', label: 'Cuartos' },
-  { key: 'sf', label: 'Semis' },
-  { key: 'final', label: 'Final' },
-]
+const ROUND_KEYS = ['r32', 'r16', 'qf', 'sf', 'final']
 
-function Row({ slot, top }) {
+function Row({ slot, top, tp }) {
   const team = slot?.team
   const flag = team ? getFlagUrl(team, 40) : null
   const isLoser = slot && slot.win === false
@@ -25,11 +20,11 @@ function Row({ slot, top }) {
       <span className={`flex-1 text-sm leading-none truncate ${isLoser ? 'font-medium text-white/60' : 'font-bold text-white'}`}>
         {teamLabel(team)}
       </span>
-      {isWinner && <span className="text-emerald-400 text-sm flex-shrink-0" aria-label="avanza">›</span>}
+      {isWinner && <span className="text-emerald-400 text-sm flex-shrink-0" aria-label="→">›</span>}
       {slot?.played && slot?.score != null ? (
         <span className={`text-[12px] font-bold tabular-nums flex-shrink-0 px-1.5 py-0.5 rounded ${
           isWinner ? 'text-emerald-200 bg-emerald-500/20' : 'text-white/55 bg-white/10'}`}
-          title={slot.pens ? 'Resultado real — decidido en penaltis' : 'Resultado real'}>
+          title={slot.pens ? tp.pens : tp.real}>
           {slot.score}{slot.pens && isWinner ? ' ᵖ' : ''}
         </span>
       ) : slot?.prob != null && team && (
@@ -40,11 +35,11 @@ function Row({ slot, top }) {
       )}
       {real === 'hit' && (
         <span className="text-emerald-400 text-sm font-black flex-shrink-0 leading-none"
-          title="Cruce acertado" aria-label="acierto">✓</span>
+          title={tp.hit} aria-label={tp.hit}>✓</span>
       )}
       {(real === 'wrong' || real === 'out') && (
         <span className="text-rose-500 text-sm font-black flex-shrink-0 leading-none"
-          title="Cruce no acertado" aria-label="fallo">✗</span>
+          title={tp.miss} aria-label={tp.miss}>✗</span>
       )}
     </div>
   )
@@ -57,6 +52,8 @@ function pairs(slots) {
 }
 
 export default function BracketMobile({ bracket, champion, selectedKey, onSelect }) {
+  const { t } = useI18n()
+  const tp = { real: t('bracket.scoreReal'), pens: t('bracket.scorePens'), hit: t('legend.hit'), miss: t('legend.miss') }
   const [round, setRound] = useState('r32')
   const slots = bracket?.[round] ?? []
   const matches = pairs(slots)
@@ -68,7 +65,7 @@ export default function BracketMobile({ bracket, champion, selectedKey, onSelect
       <div className="flex items-center gap-3 glass rounded-xl px-4 py-3 mb-3">
         <TrophyIcon size={26} className="text-amber-400 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <div className="text-[9px] uppercase tracking-widest text-white/40">Campeón más probable</div>
+          <div className="text-[9px] uppercase tracking-widest text-white/40">{t('common.champion')}</div>
           <div className="flex items-center gap-1.5">
             {champion && getFlagUrl(champion) &&
               <img src={getFlagUrl(champion, 40)} alt="" width={22} height={15} className="rounded-[2px]" style={{ height: 15 }} />}
@@ -80,13 +77,13 @@ export default function BracketMobile({ bracket, champion, selectedKey, onSelect
 
       {/* Selector de ronda */}
       <div role="tablist" aria-label="Ronda" className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 sticky top-0 z-10">
-        {ROUNDS.map(r => {
-          const active = round === r.key
+        {ROUND_KEYS.map(rk => {
+          const active = round === rk
           return (
-            <button key={r.key} role="tab" aria-selected={active} onClick={() => setRound(r.key)}
+            <button key={rk} role="tab" aria-selected={active} onClick={() => setRound(rk)}
               className={`flex-shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 active ? 'bg-blue-600/30 text-blue-200 border border-blue-500/40' : 'glass text-white/55'}`}>
-              {r.label}
+              {t('round.' + rk)}
             </button>
           )
         })}
@@ -100,15 +97,15 @@ export default function BracketMobile({ bracket, champion, selectedKey, onSelect
           return (
             <button key={key}
               onClick={() => onSelect(m.a?.team, m.b?.team, key)}
-              aria-label={`Predicción ${teamLabel(m.a?.team)} contra ${teamLabel(m.b?.team)}`}
+              aria-label={`${teamLabel(m.a?.team)} - ${teamLabel(m.b?.team)}`}
               className={`w-full rounded-xl border overflow-hidden text-left transition-colors ${
                 selectedKey === key
                   ? 'border-blue-500 bg-blue-950/40'
                   : played
                     ? 'border-emerald-500/70 bg-emerald-500/[0.07]'
                     : 'border-white/12 bg-white/[0.04] active:bg-white/[0.07]'}`}>
-              <Row slot={m.a} top />
-              <Row slot={m.b} />
+              <Row slot={m.a} top tp={tp} />
+              <Row slot={m.b} tp={tp} />
             </button>
           )
         })}

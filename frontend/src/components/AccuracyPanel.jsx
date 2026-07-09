@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react'
 import { useBacktest } from '../hooks/useProjection.js'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
+import { useI18n } from '../i18n.jsx'
 
 // Diagrama de fiabilidad: probabilidad predicha (x) vs frecuencia real (y).
 // La diagonal = calibración perfecta ("cuando digo 60%, pasa el 60%").
 function CalibrationChart({ bins }) {
+  const { t, tr } = useI18n()
   const hostRef = useRef(null)
   const [tip, setTip] = useState(null)
   if (!bins?.length) return null
@@ -40,15 +42,15 @@ function CalibrationChart({ bins }) {
               setTip({ x: e.clientX - r.left, y: e.clientY - r.top, b })
             }} />
         ))}
-        <text x={W / 2} y={H - 1} textAnchor="middle" fontSize="9.5" fill="rgba(255,255,255,0.5)">probabilidad predicha (%)</text>
+        <text x={W / 2} y={H - 1} textAnchor="middle" fontSize="9.5" fill="rgba(255,255,255,0.5)">{t('acc.calX')}</text>
         <text x={11} y={H / 2} textAnchor="middle" fontSize="9.5" fill="rgba(255,255,255,0.5)"
-          transform={`rotate(-90 11 ${H / 2})`}>frecuencia real (%)</text>
+          transform={`rotate(-90 11 ${H / 2})`}>{t('acc.calY')}</text>
       </svg>
       {tip && (
         <div className="absolute z-30 pointer-events-none rounded-lg border border-white/15 bg-[#0d1322]/95 px-2.5 py-1.5 text-[11px] shadow-xl"
           style={{ left: Math.min(tip.x + 12, 200), top: tip.y + 12, backdropFilter: 'blur(8px)' }}>
-          <div className="text-white/85">Predijo ≈<strong>{tip.b.pred}%</strong></div>
-          <div className="text-white/60">ocurrió el <strong className="text-emerald-300">{tip.b.obs}%</strong> · {tip.b.n} casos</div>
+          <div className="text-white/85">{tr('acc.calTipPred', { p: tip.b.pred })}</div>
+          <div className="text-white/60">{tr('acc.calTipObs', { o: tip.b.obs, n: tip.b.n })}</div>
         </div>
       )}
     </div>
@@ -66,18 +68,17 @@ function Metric({ label, value, sub, good }) {
 }
 
 export default function AccuracyPanel() {
+  const { t, tr, lang } = useI18n()
   const { data, loading, error } = useBacktest()
 
-  if (loading) return <div className="p-6 text-white/30 text-sm">Calculando backtest…</div>
-  if (error || !data || data.loading) return <div className="p-6 text-amber-300 text-sm">No disponible aún. Inténtalo en unos segundos.</div>
+  if (loading) return <div className="p-6 text-white/30 text-sm">{t('acc.computing')}</div>
+  if (error || !data || data.loading) return <div className="p-6 text-amber-300 text-sm">{t('acc.unavailable')}</div>
 
   const d = data
   return (
     <div className="p-4 sm:p-5 max-w-4xl mx-auto">
       <div className="rounded-xl bg-blue-500/8 border border-blue-500/20 px-3 py-2.5 text-[11px] sm:text-xs text-blue-200/90 mb-4">
-        <strong>Validación honesta (out-of-sample).</strong> Se reentrenó el modelo con {d.train_matches?.toLocaleString('es')} partidos
-        {' '}<strong>excluyendo el Mundial 2026</strong> (sin fuga de datos) y se predijeron los {d.test_matches} partidos
-        del Mundial 2026 ya jugados (grupos y eliminatorias). Se actualiza solo según se juegan. Así se mide cómo lo haría con partidos que nunca vio.
+        {tr('acc.honest', { train: d.train_matches?.toLocaleString(lang==='en'?'en-GB':'es'), n: d.test_matches })}
       </div>
 
       {/* Validación multi-Mundial */}
@@ -88,8 +89,8 @@ export default function AccuracyPanel() {
         return (
           <div className="rounded-xl bg-white/[0.03] border border-white/10 p-4 mb-3">
             <div className="flex items-baseline justify-between mb-3 flex-wrap gap-1">
-              <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider">¿Generaliza? Últimos 3 Mundiales</h3>
-              {glob && <span className="text-[11px] text-white/45">{glob.accuracy_1x2}% global · {glob.matches} partidos</span>}
+              <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider">{t('acc.generalise')}</h3>
+              {glob && <span className="text-[11px] text-white/45">{t('acc.globalLine', { a: glob.accuracy_1x2, n: glob.matches })}</span>}
             </div>
             <div className="space-y-2.5">
               {rows.map(w => (
@@ -102,63 +103,48 @@ export default function AccuracyPanel() {
                     </div>
                   </div>
                   <span className="text-[10px] text-white/40 flex-shrink-0 w-24 text-right">
-                    Elo {w.baseline_elo}% · {w.matches} part.
+                    {t('acc.baselineElo', { b: w.baseline_elo, n: w.matches })}
                   </span>
                 </div>
               ))}
             </div>
-            <p className="text-[10px] text-white/40 mt-3">
-              Cada Mundial se predice reentrenando <strong className="text-white/60">solo con partidos anteriores</strong> a
-              ese torneo. 2022 fue atípico (muchas sorpresas); mostrarlo tal cual es parte de la honestidad del backtest.
-            </p>
+            <p className="text-[10px] text-white/40 mt-3">{tr('acc.multiNote')}</p>
           </div>
         )
       })()}
 
       {/* Métricas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-3">
-        <Metric label="Acierto resultado (1X2)" value={`${d.accuracy_1x2}%`} good
-          sub={`local ${d.baseline_home}% · mejor Elo ${d.baseline_elo}%`} />
-        <Metric label="Marcador exacto" value={`${d.exact_score}%`}
-          sub="clavar el resultado es casi azar" />
-        <Metric label="Brier score ↓" value={d.brier} good
-          sub={`sin info: ${d.brier_baseline}`} />
-        <Metric label="Log-loss ↓" value={d.logloss} good
-          sub={`sin info: ${d.logloss_baseline}`} />
+        <Metric label={t('acc.mAccuracy')} value={`${d.accuracy_1x2}%`} good
+          sub={t('acc.mAccuracySub', { h: d.baseline_home, e: d.baseline_elo })} />
+        <Metric label={t('acc.mExact')} value={`${d.exact_score}%`} sub={t('acc.mExactSub')} />
+        <Metric label="Brier score ↓" value={d.brier} good sub={t('acc.mBrierSub', { b: d.brier_baseline })} />
+        <Metric label="Log-loss ↓" value={d.logloss} good sub={t('acc.mBrierSub', { b: d.logloss_baseline })} />
       </div>
       <p className="text-[11px] text-white/45 mb-5">
-        El valor del modelo está en <strong className="text-white/70">acertar el resultado y calibrar bien las probabilidades</strong>
-        {' '}(Brier y log-loss baten claramente al azar): cuando dice 60%, acierta ~60% de las veces. Clavar el marcador exacto
-        es casi imposible en fútbol (lo muestra el {d.exact_score}%); el marcador que ves es simplemente el <strong className="text-white/70">más probable</strong>.
-        Error medio de goles: {d.goal_mae} por equipo.
+        {tr('acc.value', { x: d.exact_score, mae: d.goal_mae })}
       </p>
 
       {/* Calibración */}
       {d.calibration?.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">Calibración de las probabilidades</h3>
+          <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">{t('acc.calTitle')}</h3>
           <div className="glass rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4">
             <CalibrationChart bins={d.calibration} />
-            <p className="text-[11px] text-white/55 leading-relaxed flex-1">
-              Cada punto agrupa las predicciones por nivel de confianza y las compara con lo que pasó de verdad.
-              Cuanto más pegados a la <span className="text-white/80">diagonal</span>, mejor calibrado: cuando el
-              modelo dice <strong className="text-white/80">60 %</strong>, ese resultado ocurre en torno al
-              {' '}<strong className="text-white/80">60 %</strong> de las veces. El tamaño del punto es el número
-              de casos en ese tramo. Es lo que hace útiles las probabilidades más allá de acertar o no.
-            </p>
+            <p className="text-[11px] text-white/55 leading-relaxed flex-1">{tr('acc.calDesc')}</p>
           </div>
         </div>
       )}
 
       {/* Tabla predicho vs real */}
-      <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">Predicho vs real · {d.test_matches} partidos</h3>
+      <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">{t('acc.tableTitle', { n: d.test_matches })}</h3>
       <div className="glass rounded-xl overflow-hidden">
         {/* cabecera (oculta detalles en móvil) */}
         <div className="flex items-center gap-2 px-3 py-2 text-[9px] uppercase tracking-wider text-white/35 border-b border-white/5">
-          <span className="flex-1">Partido</span>
-          <span className="w-12 text-center">Pred</span>
-          <span className="w-12 text-center">Real</span>
-          <span className="hidden sm:block w-28 text-center">Prob 1/X/2</span>
+          <span className="flex-1">{t('acc.colMatch')}</span>
+          <span className="w-12 text-center">{t('acc.colPred')}</span>
+          <span className="w-12 text-center">{t('acc.colReal')}</span>
+          <span className="hidden sm:block w-28 text-center">{t('acc.colProb')}</span>
           <span className="w-6 text-center">✓</span>
         </div>
         <div className="divide-y divide-white/5 max-h-[55vh] overflow-y-auto">

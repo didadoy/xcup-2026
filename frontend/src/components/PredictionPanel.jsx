@@ -1,6 +1,7 @@
 import { useMatchPrediction } from '../hooks/useProjection.js'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
 import { BallIcon, CloseIcon } from './Icons.jsx'
+import { useI18n, localeOf } from '../i18n.jsx'
 
 function TeamHead({ team, side }) {
   const flag = team ? getFlagUrl(team, 40) : null
@@ -31,13 +32,14 @@ function ProbBar({ label, value, color, flag }) {
 }
 
 export default function PredictionPanel({ teamA, teamB, label, onClose }) {
+  const { t, tr, lang } = useI18n()
   const { prediction, loading } = useMatchPrediction(teamA, teamB)
 
   if (!teamA || !teamB) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-white/30 gap-3 p-6">
         <BallIcon size={44} className="text-white/20" />
-        <p className="text-sm text-center leading-relaxed">Pulsa un partido del cuadro<br />para ver la predicción</p>
+        <p className="text-sm text-center leading-relaxed">{t('pred.empty')}</p>
       </div>
     )
   }
@@ -45,9 +47,9 @@ export default function PredictionPanel({ teamA, teamB, label, onClose }) {
   return (
     <div className="p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-bold text-white/60 uppercase tracking-wider">{label || 'Predicción IA'}</h2>
+        <h2 className="text-xs font-bold text-white/60 uppercase tracking-wider">{t(label || 'pred.title')}</h2>
         {onClose && (
-          <button onClick={onClose} aria-label="Cerrar predicción"
+          <button onClick={onClose} aria-label={t('pred.close')}
             className="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center transition-colors">
             <CloseIcon size={15} />
           </button>
@@ -68,32 +70,30 @@ export default function PredictionPanel({ teamA, teamB, label, onClose }) {
           <>
             {/* Goles esperados — el dato que de verdad varía */}
             <div className="glass rounded-xl p-4 border border-blue-500/15">
-              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Goles esperados (xG)</p>
+              <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">{t('pred.xg')}</p>
               <div className="flex items-end justify-center gap-3">
                 <span className="text-4xl font-black text-white tabular-nums">{R.expected_goals_home}</span>
                 <span className="text-white/25 text-xl mb-1">–</span>
                 <span className="text-4xl font-black text-white tabular-nums">{R.expected_goals_away}</span>
               </div>
               <p className="text-center text-[11px] text-white/35 mt-1.5">
-                {R.predicted_outcome === 'draw'
-                  ? 'El modelo no da un favorito claro'
-                  : <>favorito <span className="text-blue-400 font-semibold">{teamLabel(favourite)}</span> · confianza {confidence}%</>}
+                {R.predicted_outcome === 'draw' ? t('pred.noFav') : tr('pred.favLine', { t: teamLabel(favourite), c: confidence })}
               </p>
             </div>
 
             {/* 1X2 */}
             <div className="space-y-2">
-              <p className="text-[10px] text-white/30 uppercase tracking-wider">Resultado del partido</p>
+              <p className="text-[10px] text-white/30 uppercase tracking-wider">{t('pred.result')}</p>
               <ProbBar label={teamLabel(teamA)} value={P.home_win} color="#3b82f6" flag={getFlagUrl(teamA, 20)} />
-              <ProbBar label="Empate" value={P.draw} color="rgba(255,255,255,0.35)" />
+              <ProbBar label={t('pred.draw')} value={P.draw} color="rgba(255,255,255,0.35)" />
               <ProbBar label={teamLabel(teamB)} value={P.away_win} color="#7c3aed" flag={getFlagUrl(teamB, 20)} />
             </div>
 
             {/* Marcadores más probables */}
             <div className="glass rounded-xl p-4">
               <p className="text-[10px] text-white/30 uppercase tracking-wider mb-3">
-                Marcadores más probables
-                <span className="text-white/20 normal-case tracking-normal ml-1">· ninguno domina (fútbol = pocos goles)</span>
+                {t('pred.scores')}
+                <span className="text-white/20 normal-case tracking-normal ml-1">{t('pred.scoresNote')}</span>
               </p>
               <div className="space-y-1.5">
                 {R.top_scores.slice(0, 6).map((s, i) => (
@@ -117,8 +117,7 @@ export default function PredictionPanel({ teamA, teamB, label, onClose }) {
             </div>
 
             <p className="text-[10px] text-white/20 text-center leading-relaxed">
-              Modelo Elo + Poisson entrenado con {prediction.model?.n_matches?.toLocaleString('es')} partidos<br />
-              internacionales reales (hasta {prediction.model?.trained_through})
+              {t('pred.trained', { n: prediction.model?.n_matches?.toLocaleString(localeOf(lang)), d: prediction.model?.trained_through })}
             </p>
           </>
         )

@@ -9,41 +9,37 @@ import AccuracyPanel from './components/AccuracyPanel.jsx'
 import FinalReport from './components/FinalReport.jsx'
 import HowItWorks from './components/HowItWorks.jsx'
 import { useProjection, useIsDesktop } from './hooks/useProjection.js'
+import { useI18n } from './i18n.jsx'
 import { TrophyIcon, GridIcon, ChartIcon, TargetIcon, SignalIcon, AlertIcon, DocIcon, BallIcon } from './components/Icons.jsx'
 
 const VIEWS = [
-  { id: 'bracket', label: 'Cuadro', Icon: TrophyIcon },
-  { id: 'groups', label: 'Grupos', Icon: GridIcon },
-  { id: 'favourites', label: 'Favoritos', Icon: ChartIcon },
-  { id: 'accuracy', label: 'Precisión', Icon: TargetIcon },
-  { id: 'how', label: 'Cómo funciona', Icon: BallIcon },
+  { id: 'bracket', Icon: TrophyIcon },
+  { id: 'groups', Icon: GridIcon },
+  { id: 'favourites', Icon: ChartIcon },
+  { id: 'accuracy', Icon: TargetIcon },
+  { id: 'how', Icon: BallIcon },
 ]
-const REPORT_VIEW = { id: 'report', label: 'Informe', Icon: DocIcon }
+const REPORT_VIEW = { id: 'report', Icon: DocIcon }
 
-const TITLES = {
-  report: 'Informe final', bracket: 'Cuadro proyectado', groups: 'Fase de grupos',
-  favourites: 'Favoritos al título', accuracy: 'Precisión del modelo',
-  how: 'Cómo funciona',
-}
-
-function Loading() {
+function Loading({ label }) {
   return (
     <div className="flex items-center justify-center h-72 text-white/30 gap-3 px-4 text-center">
       <span className="w-5 h-5 rounded-full border-2 border-white/20 border-t-blue-400 animate-spin flex-shrink-0" />
-      Cargando…
+      {label}
     </div>
   )
 }
 
 export default function App() {
   const { data, loading, refreshing, error, lastUpdated } = useProjection()
+  const { t, tr, lang } = useI18n()
   const [sel, setSel] = useState(null)
   const [view, setView] = useState('bracket')
   const isDesktop = useIsDesktop()
 
   const onSelect = (teamA, teamB, key) => {
     if (!teamA || !teamB) return
-    setSel({ teamA, teamB, key, label: key === 'FINAL' ? 'Final proyectada' : 'Predicción del cruce' })
+    setSel({ teamA, teamB, key, label: key === 'FINAL' ? 'pred.final' : 'pred.tie' })
     setView('bracket')
   }
   const panelOpen = !!sel && view === 'bracket'
@@ -88,8 +84,8 @@ export default function App() {
         {/* Barra: título + pestañas (responsive) */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 sm:px-6 pt-3 sm:pt-4 flex-shrink-0">
           <h1 className="text-lg sm:text-xl font-black text-white tracking-tight mr-auto">
-            {TITLES[view]}
-            <span className="ml-2 text-xs sm:text-sm font-normal text-white/30">· Mundial 2026</span>
+            {t(`title.${view}`)}
+            <span className="ml-2 text-xs sm:text-sm font-normal text-white/30">{t('title.sub')}</span>
           </h1>
           <div role="tablist" aria-label="Vistas"
             className="flex rounded-xl border border-white/10 overflow-x-auto text-xs">
@@ -100,7 +96,7 @@ export default function App() {
                   className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 font-semibold whitespace-nowrap transition-colors border-l first:border-l-0 border-white/10 ${
                     active ? 'bg-blue-600/25 text-blue-300' : 'text-white/55 hover:text-white hover:bg-white/5'}`}>
                   <v.Icon size={15} />
-                  <span>{v.label}</span>
+                  <span>{t(`nav.${v.id}`)}</span>
                 </button>
               )
             })}
@@ -114,21 +110,20 @@ export default function App() {
               <SignalIcon size={16} className="text-blue-300 flex-shrink-0 mt-0.5 sm:mt-0" />
               <span>
                 {groupsDone ? (
-                  <><strong>Cuadro real vs predicho</strong> · eliminatorias: <strong>{koPlayed}/{koTotal}</strong> partidos jugados.
-                  {' '}Los cruces y resultados son los <strong>reales</strong>; donde aún no se ha jugado, avanza el favorito del modelo (›).</>
+                  <><strong>{t('banner.realTitle')}</strong> · {tr('banner.realKo', { n: koPlayed, tot: koTotal })}
+                  {' '}{tr('banner.realDesc')}</>
                 ) : (
-                  <><strong>Proyección con datos reales</strong> · {data?.played_group_matches} jugados,
-                  {' '}{data?.remaining_group_matches} simulados. En cada cruce <strong>avanza el favorito</strong> (›).</>
+                  <><strong>{t('banner.projTitle')}</strong> · {tr('banner.projDesc', { n: data?.played_group_matches, r: data?.remaining_group_matches })}</>
                 )}
-                {' '}Pulsa un partido para la predicción.
-                <span className="ml-1 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-400 font-black">✓</span> cruce acertado</span>
-                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-rose-500 font-black">✗</span> cruce fallado</span>
-                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-[3px] border border-emerald-500/70 bg-emerald-500/10 inline-block" /> jugado</span>
-                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-200 font-bold">ᵖ</span> penaltis</span>
+                {' '}{t('banner.tap')}
+                <span className="ml-1 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-400 font-black">✓</span> {t('legend.hit')}</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-rose-500 font-black">✗</span> {t('legend.miss')}</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2.5 h-2.5 rounded-[3px] border border-emerald-500/70 bg-emerald-500/10 inline-block" /> {t('legend.played')}</span>
+                <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="text-emerald-200 font-bold">ᵖ</span> {t('legend.pens')}</span>
                 {!groupsDone && (
                   <>
-                    <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> clasificado</span>
-                    <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> depende</span>
+                    <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /> {t('legend.qualified')}</span>
+                    <span className="ml-1.5 inline-flex items-center gap-1 whitespace-nowrap"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> {t('legend.undecided')}</span>
                   </>
                 )}
               </span>
@@ -138,7 +133,7 @@ export default function App() {
 
         {error && !data && (
           <div className="mx-4 sm:mx-6 mt-3 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 text-xs text-amber-300 flex items-center gap-2">
-            <AlertIcon size={15} className="flex-shrink-0" /><span>Conectando con el servidor… (puede tardar si estaba en reposo)</span>
+            <AlertIcon size={15} className="flex-shrink-0" /><span>{t('app.connecting')}</span>
           </div>
         )}
 
@@ -146,18 +141,18 @@ export default function App() {
         <div className="flex-1 relative overflow-hidden">
           {view === 'bracket' && (
             <div className="h-full overflow-hidden">
-              {loading ? <Loading /> : (
+              {loading ? <Loading label={t('common.loading')} /> : (
                 isDesktop
                   ? <div className="h-full px-4 pt-2 pb-3"><Bracket bracket={displayBracket} selectedKey={sel?.key} onSelect={onSelect} /></div>
                   : <div className="h-full overflow-auto pt-2"><BracketMobile bracket={displayBracket} champion={data?.champion} selectedKey={sel?.key} onSelect={onSelect} /></div>
               )}
             </div>
           )}
-          {view === 'report' && <div className="h-full overflow-auto">{loading ? <Loading /> : <FinalReport data={data} onGoBracket={() => setView('bracket')} />}</div>}
-          {view === 'groups' && <div className="h-full overflow-auto">{loading ? <Loading /> : <GroupsPanel groups={data?.groups} fixtures={data?.group_fixtures} />}</div>}
-          {view === 'favourites' && <div className="h-full overflow-auto">{loading ? <Loading /> : <FavouritesPanel favourites={data?.favourites} simulations={data?.simulations} />}</div>}
+          {view === 'report' && <div className="h-full overflow-auto">{loading ? <Loading label={t('common.loading')} /> : <FinalReport data={data} onGoBracket={() => setView('bracket')} />}</div>}
+          {view === 'groups' && <div className="h-full overflow-auto">{loading ? <Loading label={t('common.loading')} /> : <GroupsPanel groups={data?.groups} fixtures={data?.group_fixtures} />}</div>}
+          {view === 'favourites' && <div className="h-full overflow-auto">{loading ? <Loading label={t('common.loading')} /> : <FavouritesPanel favourites={data?.favourites} simulations={data?.simulations} />}</div>}
           {view === 'accuracy' && <div className="h-full overflow-auto"><AccuracyPanel /></div>}
-          {view === 'how' && <div className="h-full overflow-auto">{loading ? <Loading /> : <HowItWorks data={data} onGoAccuracy={() => setView('accuracy')} />}</div>}
+          {view === 'how' && <div className="h-full overflow-auto">{loading ? <Loading label={t('common.loading')} /> : <HowItWorks data={data} onGoAccuracy={() => setView('accuracy')} />}</div>}
 
           {/* Panel de predicción: lateral en desktop, bottom-sheet en móvil */}
           {panelOpen && (
@@ -178,8 +173,8 @@ export default function App() {
         </div>
 
         <footer className="flex-shrink-0 py-2 px-4 sm:px-6 flex items-center justify-between gap-3 border-t border-white/[0.05]">
-          <span className="text-[10px] text-white/40 truncate">Datos oficiales reales · proyección estadística, no pronóstico oficial</span>
-          <span className="text-[10px] text-white/40 hidden sm:block flex-shrink-0">Elo + Poisson · {data?.model?.n_matches?.toLocaleString('es')} partidos</span>
+          <span className="text-[10px] text-white/40 truncate">{t('footer.disclaimer')}</span>
+          <span className="text-[10px] text-white/40 hidden sm:block flex-shrink-0">{t('footer.model', { n: data?.model?.n_matches?.toLocaleString(lang==='en'?'en-GB':'es') })}</span>
         </footer>
       </div>
     </div>

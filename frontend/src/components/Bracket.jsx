@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
 import { TrophyIcon, QualDot } from './Icons.jsx'
+import { useI18n } from '../i18n.jsx'
 
 // ── Geometría ───────────────────────────────────────────────────────────
 const CARD_W = 158
@@ -31,10 +32,10 @@ const TOTAL_W_SIDE = N_ROUNDS * COL_W - COL_GAP
 const BRACKET_W = 2 * TOTAL_W_SIDE + CENTER_W   // ancho natural total
 const BRACKET_H = TOTAL_H + 36                   // alto natural (incluye etiquetas)
 
-const ROUND_LABELS = ['16avos', 'Octavos', 'Cuartos', 'Semis']
+
 
 // ── Fila de una selección dentro de la tarjeta ──────────────────────────
-function SlotRow({ slot, top }) {
+function SlotRow({ slot, top, tp }) {
   const team = slot?.team
   const flag = team ? getFlagUrl(team, 40) : null
   const prob = slot?.prob
@@ -51,11 +52,11 @@ function SlotRow({ slot, top }) {
         isLoser ? 'font-medium text-white/60' : 'font-bold text-white'}`}>
         {teamLabel(team)}
       </span>
-      {isWinner && <span className="text-emerald-400 text-[11px] flex-shrink-0" aria-label="avanza">›</span>}
+      {isWinner && <span className="text-emerald-400 text-[11px] flex-shrink-0" aria-label="→">›</span>}
       {slot?.played && slot?.score != null ? (
         <span className={`text-[11px] font-bold tabular-nums flex-shrink-0 px-1 py-0.5 rounded ${
           isWinner ? 'text-emerald-200 bg-emerald-500/20' : 'text-white/55 bg-white/10'}`}
-          title={slot.pens ? 'Resultado real — decidido en penaltis' : 'Resultado real'}>
+          title={slot.pens ? tp.pens : tp.real}>
           {slot.score}{slot.pens && isWinner ? ' ᵖ' : ''}
         </span>
       ) : prob != null && team && (
@@ -66,22 +67,22 @@ function SlotRow({ slot, top }) {
       )}
       {real === 'hit' && (
         <span className="text-emerald-400 text-[12px] font-black flex-shrink-0 leading-none"
-          title="Cruce acertado" aria-label="acierto">✓</span>
+          title={tp.hit} aria-label={tp.hit}>✓</span>
       )}
       {(real === 'wrong' || real === 'out') && (
         <span className="text-rose-500 text-[12px] font-black flex-shrink-0 leading-none"
-          title="Cruce no acertado" aria-label="fallo">✗</span>
+          title={tp.miss} aria-label={tp.miss}>✗</span>
       )}
     </div>
   )
 }
 
-function MatchCard({ a, b, x, centerY, selected, onClick }) {
+function MatchCard({ a, b, x, centerY, selected, onClick, tp, tlabels }) {
   const played = a?.played || b?.played
   return (
     <button
       onClick={onClick}
-      title={`${teamLabel(a?.team)} vs ${teamLabel(b?.team)}${played ? ' — ya jugado' : ' — ver predicción'}`}
+      title={`${teamLabel(a?.team)} vs ${teamLabel(b?.team)} — ${played ? tlabels.played : tlabels.view}`}
       aria-label={`Predicción ${teamLabel(a?.team)} contra ${teamLabel(b?.team)}`}
       className={`absolute rounded-xl border overflow-hidden text-left transition-all duration-150
         hover:scale-[1.04] hover:z-20 active:scale-100
@@ -92,8 +93,8 @@ function MatchCard({ a, b, x, centerY, selected, onClick }) {
             : 'border-white/12 bg-white/[0.04] hover:border-white/30 hover:bg-white/[0.07]'}`}
       style={{ left: x, top: centerY - CARD_H / 2, width: CARD_W, height: CARD_H }}
     >
-      <SlotRow slot={a} top />
-      <SlotRow slot={b} />
+      <SlotRow slot={a} top tp={tp} />
+      <SlotRow slot={b} tp={tp} />
     </button>
   )
 }
@@ -126,7 +127,7 @@ function Connectors({ mirror }) {
 }
 
 // ── Un lado del cuadro ──────────────────────────────────────────────────
-function BracketSide({ rounds, mirror, selectedKey, onSelect }) {
+function BracketSide({ rounds, mirror, selectedKey, onSelect, tp, tlabels, roundLabels }) {
   return (
     <div className="relative flex-shrink-0" style={{ width: TOTAL_W_SIDE, height: TOTAL_H }}>
       <Connectors mirror={mirror} />
@@ -137,12 +138,12 @@ function BracketSide({ rounds, mirror, selectedKey, onSelect }) {
           const key = `${mirror ? 'R' : 'L'}-${r}-${i}`
           return (
             <MatchCard key={key} a={m.a} b={m.b} x={x} centerY={CENTERS[r][i]}
-              selected={selectedKey === key}
+              selected={selectedKey === key} tp={tp} tlabels={tlabels}
               onClick={() => onSelect(m.a?.team, m.b?.team, key)} />
           )
         })
       )}
-      {ROUND_LABELS.map((lbl, r) => {
+      {roundLabels.map((lbl, r) => {
         const baseX = r * COL_W
         const x = mirror ? (TOTAL_W_SIDE - baseX - CARD_W) : baseX
         return (
@@ -163,6 +164,10 @@ function toMatches(slots, from, count) {
 }
 
 export default function Bracket({ bracket, selectedKey, onSelect }) {
+  const { t } = useI18n()
+  const tp = { real: t('bracket.scoreReal'), pens: t('bracket.scorePens'), hit: t('legend.hit'), miss: t('legend.miss') }
+  const tlabels = { played: t('bracket.played'), view: t('bracket.view') }
+  const roundLabels = [t('round.r32'), t('round.r16'), t('round.qf'), t('round.sf')]
   const { r32 = [], r16 = [], qf = [], sf = [], final = [] } = bracket || {}
 
   const left = [toMatches(r32, 0, 8), toMatches(r16, 0, 4), toMatches(qf, 0, 2), toMatches(sf, 0, 1)]
@@ -198,14 +203,14 @@ export default function Bracket({ bracket, selectedKey, onSelect }) {
       <div className="sticky top-0 z-20 flex justify-end pointer-events-none">
         <div className="pointer-events-auto flex items-center gap-0.5 rounded-lg glass px-1 py-1 text-white/70">
           <button onClick={() => setZoom(z => Math.max(0.5, +(z - 0.15).toFixed(2)))}
-            aria-label="Alejar" className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-base leading-none">−</button>
+            aria-label={t('bracket.zoomOut')} className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-base leading-none">−</button>
           <button onClick={() => setZoom(1)}
-            aria-label="Ajustar a la ventana" title="Ajustar a la ventana"
+            aria-label={t('bracket.zoomFit')} title={t('bracket.zoomFit')}
             className="px-2 h-7 rounded-md hover:bg-white/10 text-[11px] font-semibold tabular-nums min-w-[3rem]">
             {pct}%
           </button>
           <button onClick={() => setZoom(z => Math.min(2.5, +(z + 0.15).toFixed(2)))}
-            aria-label="Acercar" className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-base leading-none">+</button>
+            aria-label={t('bracket.zoomIn')} className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-base leading-none">+</button>
         </div>
       </div>
 
@@ -213,25 +218,25 @@ export default function Bracket({ bracket, selectedKey, onSelect }) {
       <div style={{ width: BRACKET_W * scale, height: BRACKET_H * scale, margin: '0 auto' }} className="-mt-7">
         <div style={{ width: BRACKET_W, height: BRACKET_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
           <div className="flex items-start justify-center gap-0" style={{ width: BRACKET_W }}>
-            <BracketSide rounds={left} mirror={false} selectedKey={selectedKey} onSelect={onSelect} />
+            <BracketSide rounds={left} mirror={false} selectedKey={selectedKey} onSelect={onSelect} tp={tp} tlabels={tlabels} roundLabels={roundLabels} />
 
             <div className="flex-shrink-0 flex flex-col items-center"
               style={{ width: CENTER_W, height: TOTAL_H, paddingTop: TOTAL_H / 2 - 124 }}>
-        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/70 mb-2">Final</div>
+        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400/70 mb-2">{t('round.final')}</div>
         <button
           onClick={() => final?.length === 2 && onSelect(final[0]?.team, final[1]?.team, 'FINAL')}
-          aria-label="Predicción de la final proyectada"
+          aria-label={t('pred.final')}
           className={`w-[170px] rounded-xl border overflow-hidden mb-4 transition-all hover:scale-[1.03]
             ${selectedKey === 'FINAL'
               ? 'border-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)]'
               : final?.[0]?.played
                 ? 'border-emerald-500/70 bg-emerald-500/[0.07]'
                 : 'border-amber-500/30 bg-amber-500/[0.04]'}`}>
-          <SlotRow slot={final?.[0]} top />
-          <SlotRow slot={final?.[1]} />
+          <SlotRow slot={final?.[0]} top tp={tp} />
+          <SlotRow slot={final?.[1]} tp={tp} />
         </button>
         <TrophyIcon size={34} className="text-amber-400 mb-1.5" />
-        <div className="text-[9px] uppercase tracking-widest text-white/40">Campeón más probable</div>
+        <div className="text-[9px] uppercase tracking-widest text-white/40">{t('common.champion')}</div>
         <div className="flex items-center gap-1.5 mt-1.5">
           {champ?.team && getFlagUrl(champ.team) &&
             <img src={getFlagUrl(champ.team, 40)} alt="" width={26} height={17} className="rounded-[2px]" style={{ height: 17 }} />}
@@ -240,7 +245,7 @@ export default function Bracket({ bracket, selectedKey, onSelect }) {
         {champ?.prob != null && <div className="text-[11px] text-amber-400/80 font-bold mt-0.5">{champ.prob}%</div>}
       </div>
 
-            <BracketSide rounds={right} mirror selectedKey={selectedKey} onSelect={onSelect} />
+            <BracketSide rounds={right} mirror selectedKey={selectedKey} onSelect={onSelect} tp={tp} tlabels={tlabels} roundLabels={roundLabels} />
           </div>
         </div>
       </div>

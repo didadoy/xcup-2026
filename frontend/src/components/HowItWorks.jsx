@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useMatchPrediction } from '../hooks/useProjection.js'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
+import { useI18n } from '../i18n.jsx'
 
 // Paleta categórica validada (CVD + contraste) sobre la superficie oscura.
 const SERIES = ['#3987e5', '#199e70', '#c98500', '#9085e9', '#e66767']
@@ -126,11 +127,12 @@ function lerpColor(a, b, t) {
 }
 
 export function ScoreHeatmap({ teamA, teamB }) {
+  const { t, tr } = useI18n()
   const hostRef = useRef(null)
   const [tip, showTip, hideTip] = useTooltip()
   const { prediction } = useMatchPrediction(teamA, teamB)
   const grid = prediction?.score_grid
-  if (!grid) return <div className="h-48 flex items-center justify-center text-white/30 text-xs">Calculando matriz…</div>
+  if (!grid) return <div className="h-48 flex items-center justify-center text-white/30 text-xs">{t('common.loading')}</div>
 
   const max = Math.max(...grid.flat())
   const cell = (v) => lerpColor('#12305e', '#cde2fb', max ? Math.pow(v / max, 0.7) : 0)
@@ -138,9 +140,7 @@ export function ScoreHeatmap({ teamA, teamB }) {
   return (
     <div ref={hostRef} className="relative" onMouseLeave={hideTip}>
       <div className="text-[11px] text-white/55 mb-2">
-        Goles de <strong className="text-white/85">{teamLabel(teamA)}</strong> (filas) ×
-        {' '}goles de <strong className="text-white/85">{teamLabel(teamB)}</strong> (columnas) ·
-        {' '}xG {prediction.xg?.a} – {prediction.xg?.b}
+        {tr('how.heatRows', { a: teamLabel(teamA), b: teamLabel(teamB), xa: prediction.xg?.a, xb: prediction.xg?.b })}
       </div>
       <div className="inline-grid" style={{ gridTemplateColumns: `28px repeat(6, 40px)`, gap: 2 }}>
         <span />
@@ -158,7 +158,7 @@ export function ScoreHeatmap({ teamA, teamB }) {
                 onMouseMove={e => showTip(e, (
                   <div className="text-white/85">
                     <strong>{teamLabel(teamA)} {i} – {j} {teamLabel(teamB)}</strong>
-                    <div className="text-white/60">probabilidad {v}%</div>
+                    <div className="text-white/60">{t('how.heatProb', { v })}</div>
                   </div>
                 ), hostRef.current)}>
                 {v >= 5 ? `${Math.round(v)}` : ''}
@@ -174,6 +174,7 @@ export function ScoreHeatmap({ teamA, teamB }) {
 
 // ── 3) Distribución del campeón (barras) ─────────────────────────────────
 export function ChampBars({ favourites }) {
+  const { t } = useI18n()
   const hostRef = useRef(null)
   const [tip, showTip, hideTip] = useTooltip()
   const top = (favourites || []).slice(0, 10)
@@ -182,14 +183,14 @@ export function ChampBars({ favourites }) {
 
   return (
     <div ref={hostRef} className="relative space-y-1.5" onMouseLeave={hideTip}>
-      {top.map(t => (
-        <div key={t.team} className="flex items-center gap-2"
+      {top.map(row => (
+        <div key={row.team} className="flex items-center gap-2"
           onMouseMove={e => showTip(e, (
             <div className="text-white/85">
               <strong>{teamLabel(t.team)}</strong>
-              <div className="text-white/60">octavos {t.r16}% · cuartos {t.qf}%</div>
-              <div className="text-white/60">semis {t.sf}% · final {t.final}%</div>
-              <div className="text-white/85 font-bold">campeón {t.champion}%</div>
+              <div className="text-white/60">{t('how.barTip', { r16: row.r16, qf: row.qf })}</div>
+              <div className="text-white/60">{t('how.barTip2', { sf: row.sf, f: row.final })}</div>
+              <div className="text-white/85 font-bold">{t('how.barTip3', { c: row.champion })}</div>
             </div>
           ), hostRef.current)}>
           <span className="w-28 flex items-center gap-1.5 text-[11px] text-white/70 flex-shrink-0">
@@ -235,56 +236,39 @@ function Section({ title, sub, children }) {
 }
 
 export default function HowItWorks({ data, onGoAccuracy }) {
+  const { t, tr, lang } = useI18n()
   const finalists = data?.bracket?.final?.map(s => s?.team).filter(Boolean) || []
   const [ta, tb] = finalists.length === 2 ? finalists : ['Spain', 'Argentina']
 
   return (
     <div className="p-4 sm:p-6 max-w-3xl mx-auto pb-10">
       <p className="text-xs sm:text-sm text-white/55 leading-relaxed mb-6">
-        Nada de esta web está inventado: cada probabilidad sale de un modelo estadístico entrenado con
-        {' '}<strong className="text-white/85">{data?.model?.n_matches?.toLocaleString('es') ?? '~49.500'} partidos internacionales
-        oficiales desde 1872</strong>. Así funciona, de los datos a la predicción.
+        {tr('how.intro', { n: data?.model?.n_matches?.toLocaleString(lang === 'en' ? 'en-GB' : 'es') ?? '~49,500' })}
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-8">
-        <Step n="1" title="Datos reales">
-          Resultados oficiales (martj42/international_results): 154 años de partidos con torneo, sede y marcador.
-          Se actualizan solos tras cada jornada.
-        </Step>
-        <Step n="2" title="Elo: fuerza global">
-          Se procesa toda la historia en orden. Ganar sube tu rating según la dificultad del rival, la importancia
-          del torneo y la diferencia de goles.
-        </Step>
-        <Step n="3" title="Poisson: goles esperados">
-          Un GLM (scikit-learn) aprende el ataque y la defensa de cada selección, pesando más lo reciente y los
-          Mundiales. De ahí salen los xG y la matriz de marcadores.
-        </Step>
-        <Step n="4" title="Monte Carlo: el torneo">
-          Se simula el cuadro completo 40.000 veces partido a partido (prórroga y penaltis incluidos). Las
-          probabilidades son frecuencias de esas simulaciones.
-        </Step>
+        <Step n="1" title={t('how.s1t')}>{t('how.s1')}</Step>
+        <Step n="2" title={t('how.s2t')}>{t('how.s2')}</Step>
+        <Step n="3" title={t('how.s3t')}>{t('how.s3')}</Step>
+        <Step n="4" title={t('how.s4t')}>{t('how.s4')}</Step>
       </div>
 
-      <Section title="La fuerza de cada selección, entrenada sobre 154 años"
-        sub="Rating Elo al cierre de cada año — las 5 selecciones más fuertes hoy. Pasa el ratón para comparar cualquier año.">
+      <Section title={t('how.eloTitle')} sub={t('how.eloSub')}>
         <div className="glass rounded-xl p-4"><EloChart history={data?.model?.elo_history} /></div>
       </Section>
 
-      <Section title="De dos equipos a un marcador: la matriz Poisson"
-        sub={`Probabilidad de cada marcador exacto en ${teamLabel(ta)} – ${teamLabel(tb)} según los goles esperados del modelo. Ningún marcador supera ~el 12%: por eso el titular son las probabilidades, no "el resultado".`}>
+      <Section title={t('how.heatTitle')} sub={t('how.heatSub', { a: teamLabel(ta), b: teamLabel(tb) })}>
         <div className="glass rounded-xl p-4 overflow-x-auto"><ScoreHeatmap teamA={ta} teamB={tb} /></div>
       </Section>
 
-      <Section title="40.000 Mundiales simulados"
-        sub="Probabilidad de título: en cuántas de las 40.000 simulaciones cada selección acaba levantando la copa.">
+      <Section title={t('how.mcTitle')} sub={t('how.mcSub')}>
         <div className="glass rounded-xl p-4"><ChampBars favourites={data?.favourites} /></div>
       </Section>
 
-      <Section title="Validación honesta"
-        sub="El modelo se evalúa reentrenándolo SIN los partidos del Mundial 2026 y prediciendo lo que nunca vio (out-of-sample). Sin fuga de datos: la métrica que ves es la que tendría en la vida real.">
+      <Section title={t('how.valTitle')} sub={t('how.valSub')}>
         <button onClick={onGoAccuracy}
           className="px-4 py-2 rounded-xl bg-blue-600/25 border border-blue-500/40 text-blue-200 text-xs font-bold hover:bg-blue-600/35 transition-colors">
-          Ver la precisión medida partido a partido
+          {t('how.valBtn')}
         </button>
       </Section>
     </div>
