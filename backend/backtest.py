@@ -87,6 +87,12 @@ def run():
     table = []
     correct = exact = base_home = base_elo = 0
     brier = brier_base = logloss = goal_ae = 0.0
+    # calibración: 10 bins de probabilidad; para cada (partido, clase HDA)
+    # acumulamos prob predicha y si esa clase realmente ocurrió.
+    NB = 10
+    cal_sum = [0.0] * NB   # suma de prob predicha en el bin
+    cal_hit = [0] * NB     # veces que la clase ocurrió
+    cal_n = [0] * NB       # nº de observaciones
 
     for m in test:
         pr = predict(m["home"], m["away"], m["neutral"])
@@ -103,6 +109,8 @@ def run():
             y = 1.0 if real_out == k else 0.0
             brier += (probs[k] - y) ** 2
             brier_base += (1/3 - y) ** 2
+            b = min(NB - 1, int(probs[k] * NB))
+            cal_sum[b] += probs[k]; cal_hit[b] += int(y); cal_n[b] += 1
         logloss += -math.log(max(1e-9, probs[real_out]))
         goal_ae += abs(pr["xg_h"] - m["hs"]) + abs(pr["xg_a"] - m["as"])
 
@@ -117,9 +125,16 @@ def run():
         })
 
     n = max(1, len(test))
+    calibration = [
+        {"pred": round(cal_sum[b] / cal_n[b] * 100, 1),
+         "obs": round(cal_hit[b] / cal_n[b] * 100, 1),
+         "n": cal_n[b]}
+        for b in range(NB) if cal_n[b] > 0
+    ]
     return {
         "train_matches": len(train),
         "test_matches": len(test),
+        "calibration": calibration,
         "accuracy_1x2": round(correct / n * 100, 1),
         "baseline_home": round(base_home / n * 100, 1),
         "baseline_elo": round(base_elo / n * 100, 1),
