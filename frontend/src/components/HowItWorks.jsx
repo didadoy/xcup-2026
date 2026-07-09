@@ -187,23 +187,23 @@ export function ChampBars({ favourites }) {
         <div key={row.team} className="flex items-center gap-2"
           onMouseMove={e => showTip(e, (
             <div className="text-white/85">
-              <strong>{teamLabel(t.team)}</strong>
+              <strong>{teamLabel(row.team)}</strong>
               <div className="text-white/60">{t('how.barTip', { r16: row.r16, qf: row.qf })}</div>
               <div className="text-white/60">{t('how.barTip2', { sf: row.sf, f: row.final })}</div>
               <div className="text-white/85 font-bold">{t('how.barTip3', { c: row.champion })}</div>
             </div>
           ), hostRef.current)}>
           <span className="w-28 flex items-center gap-1.5 text-[11px] text-white/70 flex-shrink-0">
-            {getFlagUrl(t.team) && <img src={getFlagUrl(t.team, 20)} alt="" width={16} height={11}
+            {getFlagUrl(row.team) && <img src={getFlagUrl(row.team, 20)} alt="" width={16} height={11}
               className="rounded-[1px]" style={{ height: 11 }} />}
-            <span className="truncate">{teamLabel(t.team)}</span>
+            <span className="truncate">{teamLabel(row.team)}</span>
           </span>
           <div className="flex-1 h-[18px]">
             <div className="h-full rounded-r-[4px]"
-              style={{ width: `${Math.max(1.5, (t.champion / max) * 100)}%`, background: '#3987e5' }} />
+              style={{ width: `${Math.max(1.5, (row.champion / max) * 100)}%`, background: '#3987e5' }} />
           </div>
           <span className="w-11 text-right text-[11px] font-bold text-white/80 tabular-nums flex-shrink-0">
-            {t.champion}%
+            {row.champion}%
           </span>
         </div>
       ))}

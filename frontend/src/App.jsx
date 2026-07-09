@@ -80,7 +80,8 @@ export default function App() {
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen h-screen">
-        <Header trainedThrough={data?.model?.trained_through} lastUpdated={lastUpdated} refreshing={refreshing} />
+        <Header trainedThrough={data?.model?.trained_through} lastUpdated={lastUpdated} refreshing={refreshing}
+          onHome={() => { setSel(null); setView(tournamentOver ? 'report' : 'bracket') }} />
 
         {/* Barra: título + pestañas (responsive) */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 sm:px-6 pt-3 sm:pt-4 flex-shrink-0">

@@ -24,7 +24,7 @@ function LangToggle({ lang, setLang }) {
   )
 }
 
-export default function Header({ trainedThrough, lastUpdated, refreshing }) {
+export default function Header({ trainedThrough, lastUpdated, refreshing, onHome }) {
   const { t, lang, setLang } = useI18n()
   const when = fmt(lastUpdated, lang)
 
@@ -43,7 +43,8 @@ export default function Header({ trainedThrough, lastUpdated, refreshing }) {
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3 border-b border-white/5"
       style={{ background: 'rgba(4, 6, 15, 0.85)', backdropFilter: 'blur(20px)' }}>
 
-      <div className="flex items-center gap-2.5">
+      <button onClick={onHome} aria-label="Inicio"
+        className="flex items-center gap-2.5 rounded-lg hover:opacity-90 transition-opacity">
         <div className="relative">
           <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-violet-700 flex items-center justify-center text-white">
             <BallIcon size={20} />
@@ -54,7 +55,7 @@ export default function Header({ trainedThrough, lastUpdated, refreshing }) {
           <span className="text-white font-bold text-sm sm:text-base tracking-tight">xCup</span>
           <span className="ml-1.5 text-blue-400 font-bold text-sm sm:text-base">2026</span>
         </div>
-      </div>
+      </button>
 
       <div className="flex items-center gap-2 sm:gap-3 text-[11px]">
         {trainedThrough && (
