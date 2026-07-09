@@ -7,20 +7,23 @@ import GroupsPanel from './components/GroupsPanel.jsx'
 import FavouritesPanel from './components/FavouritesPanel.jsx'
 import AccuracyPanel from './components/AccuracyPanel.jsx'
 import FinalReport from './components/FinalReport.jsx'
+import HowItWorks from './components/HowItWorks.jsx'
 import { useProjection, useIsDesktop } from './hooks/useProjection.js'
-import { TrophyIcon, GridIcon, ChartIcon, TargetIcon, SignalIcon, AlertIcon, DocIcon } from './components/Icons.jsx'
+import { TrophyIcon, GridIcon, ChartIcon, TargetIcon, SignalIcon, AlertIcon, DocIcon, BallIcon } from './components/Icons.jsx'
 
 const VIEWS = [
   { id: 'bracket', label: 'Cuadro', Icon: TrophyIcon },
   { id: 'groups', label: 'Grupos', Icon: GridIcon },
   { id: 'favourites', label: 'Favoritos', Icon: ChartIcon },
   { id: 'accuracy', label: 'Precisión', Icon: TargetIcon },
+  { id: 'how', label: 'Cómo funciona', Icon: BallIcon },
 ]
 const REPORT_VIEW = { id: 'report', label: 'Informe', Icon: DocIcon }
 
 const TITLES = {
   report: 'Informe final', bracket: 'Cuadro proyectado', groups: 'Fase de grupos',
   favourites: 'Favoritos al título', accuracy: 'Precisión del modelo',
+  how: 'Cómo funciona',
 }
 
 function Loading() {
@@ -154,6 +157,7 @@ export default function App() {
           {view === 'groups' && <div className="h-full overflow-auto">{loading ? <Loading /> : <GroupsPanel groups={data?.groups} fixtures={data?.group_fixtures} />}</div>}
           {view === 'favourites' && <div className="h-full overflow-auto">{loading ? <Loading /> : <FavouritesPanel favourites={data?.favourites} simulations={data?.simulations} />}</div>}
           {view === 'accuracy' && <div className="h-full overflow-auto"><AccuracyPanel /></div>}
+          {view === 'how' && <div className="h-full overflow-auto">{loading ? <Loading /> : <HowItWorks data={data} onGoAccuracy={() => setView('accuracy')} />}</div>}
 
           {/* Panel de predicción: lateral en desktop, bottom-sheet en móvil */}
           {panelOpen && (

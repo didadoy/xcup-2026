@@ -109,6 +109,7 @@ def _compute(do_download_retrain: bool):
             "n_matches": model.META.get("n_matches"),
             "trained_through": model.META.get("trained_through"),
             "source": model.META.get("source"),
+            "elo_history": model.ELO_HISTORY,
         },
     }
     bt = {**bt, "last_updated": now, "next_update": nxt}

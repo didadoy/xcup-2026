@@ -91,10 +91,23 @@ def load_matches():
 
 
 # ── 1) ELO ──────────────────────────────────────────────────────────────
-def train_elo(matches):
+HISTORY_FROM = 1990   # primer año guardado en el histórico de Elo
+
+def train_elo(matches, history=None):
+    """Si `history` es una lista, se le añaden snapshots (año, {team: elo})
+    al cierre de cada año desde HISTORY_FROM (para el gráfico de evolución)."""
     elo, n_played = {}, {}
     HOME_ADV = 100.0
+    cur_year = None
     for m in matches:
+        if history is not None:
+            y = m["date"].year
+            if cur_year is None:
+                cur_year = y
+            elif y != cur_year:
+                if cur_year >= HISTORY_FROM:
+                    history.append((cur_year, dict(elo)))
+                cur_year = y
         ra = elo.get(m["home"], 1500.0)
         rb = elo.get(m["away"], 1500.0)
         ha = 0 if m["neutral"] else HOME_ADV
@@ -109,6 +122,8 @@ def train_elo(matches):
         elo[m["away"]] = rb - delta
         n_played[m["home"]] = n_played.get(m["home"], 0) + 1
         n_played[m["away"]] = n_played.get(m["away"], 0) + 1
+    if history is not None and cur_year is not None and cur_year >= HISTORY_FROM:
+        history.append((cur_year, dict(elo)))
     return elo, n_played
 
 
@@ -194,8 +209,17 @@ def retrain_and_save() -> dict:
     """Reentrena Elo + Poisson desde el CSV y escribe trained_ratings.json.
     Sin prints (apto para hilo de fondo). Devuelve el meta."""
     matches = load_matches()
-    elo, n_played = train_elo(matches)
+    hist = []
+    elo, n_played = train_elo(matches, history=hist)
     poi = train_poisson(matches)
+
+    # Evolución del Elo (para el gráfico de la web): top-5 actuales por Elo
+    top5 = [t for t, _ in sorted(elo.items(), key=lambda kv: -kv[1])[:5]]
+    elo_history = {
+        "years": [y for y, _ in hist],
+        "series": [{"team": t, "elo": [round(s.get(t, 1500)) for _, s in hist]}
+                   for t in top5],
+    }
 
     teams = {}
     for t, e in elo.items():
@@ -210,6 +234,7 @@ def retrain_and_save() -> dict:
     out = {
         "params": {"mu": round(poi["mu"], 4), "home_adv": round(poi["home_adv"], 4)},
         "teams": teams,
+        "elo_history": elo_history,
         "meta": {
             "n_matches": len(matches),
             "trained_through": str(matches[-1]["date"]),

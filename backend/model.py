@@ -28,6 +28,7 @@ MAX_GOALS = 10                 # truncado de la PMF (cola despreciable)
 PARAMS = {}
 RATINGS = {}
 META = {}
+ELO_HISTORY = {}
 DEFAULT_ATTACK = 0.0
 DEFAULT_DEFENSE = 0.0
 
@@ -35,12 +36,13 @@ DEFAULT_DEFENSE = 0.0
 def reload_ratings():
     """(Re)carga trained_ratings.json en memoria. Permite refrescar el modelo
     sin reiniciar el proceso tras un reentrenamiento."""
-    global PARAMS, RATINGS, META, DEFAULT_ATTACK, DEFAULT_DEFENSE
+    global PARAMS, RATINGS, META, ELO_HISTORY, DEFAULT_ATTACK, DEFAULT_DEFENSE
     with open(RATINGS_PATH, encoding="utf-8") as f:
         r = json.load(f)
     PARAMS = r["params"]
     RATINGS = r["teams"]
     META = r.get("meta", {})
+    ELO_HISTORY = r.get("elo_history") or {}
     atks = [v["attack"] for v in RATINGS.values() if v.get("in_poisson")]
     defs = [v["defense"] for v in RATINGS.values() if v.get("in_poisson")]
     DEFAULT_ATTACK = float(np.mean(atks)) if atks else 0.0
@@ -248,11 +250,16 @@ def get_full_prediction(team_a: str, team_b: str) -> dict:
     probs = match_probabilities(team_a, team_b)
     result = predict_result(team_a, team_b)
     ea, eb = get_elo(team_a), get_elo(team_b)
+    # rejilla 0-5 × 0-5 de P(marcador) para el heatmap de la web
+    M, la, lb = score_matrix(team_a, team_b)
+    grid = [[round(float(M[i, j]) * 100, 1) for j in range(6)] for i in range(6)]
     return {
         "team_a": team_a,
         "team_b": team_b,
         "probabilities": probs,
         "result": result,
+        "score_grid": grid,
+        "xg": {"a": round(la, 2), "b": round(lb, 2)},
         "elo": {"home": round(ea), "away": round(eb)},
         "confidence": round(max(probs["home_win"], probs["away_win"]) * 100, 1),
         "favourite": team_a if probs["home_win"] >= probs["away_win"] else team_b,
