@@ -112,6 +112,21 @@ body {
   animation: data-flash 0.5s ease-in-out;
 }
 
+/* Entrada suave del contenido al montar / cambiar de vista */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Aparición de un partido recién jugado en el cuadro (recuadro verde) */
+@keyframes played-pop {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.0); }
+  30% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.0); }
+}
+.played-pop { animation: played-pop 1.2s ease-out; }
+
 /* Noise texture overlay */
 .noise::before {
   content: '';

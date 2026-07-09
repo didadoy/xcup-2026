@@ -8,6 +8,7 @@ import FavouritesPanel from './components/FavouritesPanel.jsx'
 import AccuracyPanel from './components/AccuracyPanel.jsx'
 import FinalReport from './components/FinalReport.jsx'
 import HowItWorks from './components/HowItWorks.jsx'
+import BracketSkeleton from './components/Skeleton.jsx'
 import { useProjection, useIsDesktop } from './hooks/useProjection.js'
 import { useI18n } from './i18n.jsx'
 import { TrophyIcon, GridIcon, ChartIcon, TargetIcon, SignalIcon, AlertIcon, DocIcon, BallIcon } from './components/Icons.jsx'
@@ -138,10 +139,10 @@ export default function App() {
         )}
 
         {/* Contenido */}
-        <div className="flex-1 relative overflow-hidden">
+        <div key={view} className="fade-up flex-1 relative overflow-hidden">
           {view === 'bracket' && (
             <div className="h-full overflow-hidden">
-              {loading ? <Loading label={t('common.loading')} /> : (
+              {loading ? <BracketSkeleton /> : (
                 isDesktop
                   ? <div className="h-full px-4 pt-2 pb-3"><Bracket bracket={displayBracket} selectedKey={sel?.key} onSelect={onSelect} /></div>
                   : <div className="h-full overflow-auto pt-2"><BracketMobile bracket={displayBracket} champion={data?.champion} selectedKey={sel?.key} onSelect={onSelect} /></div>

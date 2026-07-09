@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { BallIcon, ClockIcon } from './Icons.jsx'
 import { useI18n, localeOf } from '../i18n.jsx'
 
@@ -26,6 +27,18 @@ function LangToggle({ lang, setLang }) {
 export default function Header({ trainedThrough, lastUpdated, refreshing }) {
   const { t, lang, setLang } = useI18n()
   const when = fmt(lastUpdated, lang)
+
+  // Destello sutil cuando llegan datos nuevos (cambia lastUpdated).
+  const [flash, setFlash] = useState(false)
+  const prev = useRef(lastUpdated)
+  useEffect(() => {
+    if (lastUpdated && prev.current && lastUpdated !== prev.current) {
+      setFlash(true)
+      const id = setTimeout(() => setFlash(false), 600)
+      return () => clearTimeout(id)
+    }
+    prev.current = lastUpdated
+  }, [lastUpdated])
   return (
     <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3 border-b border-white/5"
       style={{ background: 'rgba(4, 6, 15, 0.85)', backdropFilter: 'blur(20px)' }}>
@@ -57,7 +70,9 @@ export default function Header({ trainedThrough, lastUpdated, refreshing }) {
             <span className="whitespace-nowrap">{t('header.updating')}</span>
           </span>
         ) : when ? (
-          <span className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/55"
+          <span className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-white/55 ${
+            flash ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200' : 'bg-white/5 border-white/10'}`}
+            style={{ transition: 'background-color .4s, border-color .4s, color .4s' }}
             title={t('header.autoUpdate')}>
             <ClockIcon size={13} />
             <span className="whitespace-nowrap">{t('header.updated', { when })}</span>
