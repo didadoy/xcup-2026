@@ -79,6 +79,16 @@ export function QualDot({ status, className = '' }) {
   return <span className={`w-[7px] h-[7px] flex-shrink-0 ${className}`} />
 }
 
+export function DocIcon({ size = 20, className = '' }) {
+  return (
+    <svg {...base(size)} className={className}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6M9 17h4" />
+    </svg>
+  )
+}
+
 export function TargetIcon({ size = 20, className = '' }) {
   return (
     <svg {...base(size)} className={className}>

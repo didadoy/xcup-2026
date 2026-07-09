@@ -357,6 +357,7 @@ def project(n: int = 40000, force: bool = False):
     qpct = lambda t: round(qualify.get(t, 0) / n * 100) if t else None
 
     bracket = {}
+    rounds_summary = {}                # por ronda: cruces acertados y favoritos que pasaron
     cur = list(real_entrants) if use_real else list(entrants)
     cur_qual = [qpct(t) for t in cur] if use_real else list(entry_qual)
     # ¿el equipo llegó a este hueco por la REALIDAD? En 16avos sí (grupos
@@ -366,6 +367,7 @@ def project(n: int = 40000, force: bool = False):
     pred_cur = list(entrants)          # cadena PREDICHA (para marcar acierto de cruce)
     for name in ("r32", "r16", "qf", "sf", "final"):
         slots, winners, wq, pred_next, real_next = [], [], [], [], []
+        n_det = n_hit = n_pl = n_fav = 0
         for i in range(0, len(cur), 2):
             a, b = cur[i], cur[i + 1]
             pa_, pb_ = pred_cur[i], pred_cur[i + 1]
@@ -395,9 +397,21 @@ def project(n: int = 40000, force: bool = False):
                 pred_next.append(pa_ if M.advance_prob(pa_, pb_) >= 0.5 else pb_)
             else:
                 pred_next.append(pa_ or pb_)
+            if hit is not None:
+                n_det += 1
+                if hit == "hit":
+                    n_hit += 1
+            if played and a and b:
+                n_pl += 1
+                fav = a if (prob or 0) >= 50 else b
+                if fav == winner:
+                    n_fav += 1
         bracket[name] = slots
+        rounds_summary[name] = {"pairs": len(cur) // 2, "determined": n_det,
+                                "hits": n_hit, "played": n_pl, "fav_won": n_fav}
         cur, cur_qual, cur_real, pred_cur = winners, wq, real_next, pred_next
     champion = cur[0] if cur else None
+    champion_pred = pred_cur[0] if pred_cur else None   # campeón según SOLO el modelo
 
     # tabla de favoritos
     teams_tbl = []
@@ -419,14 +433,19 @@ def project(n: int = 40000, force: bool = False):
             row["status"] = status_map.get(row["team"])
 
     # campeón REAL si la final ya se jugó (para marcarlo cuando llegue el día)
-    champion_real = _final_winner(_load_knockout_rounds())
+    champion_real = _final_winner(_load_knockout_rounds(), ko_res)
+    champion_pred_prob = next((r["champion"] for r in teams_tbl
+                               if r["team"] == champion_pred), None)
 
     data = {
         "simulations": n,
         "bracket": bracket,
         "champion": champion,
+        "champion_pred": champion_pred,
+        "champion_pred_prob": champion_pred_prob,
         "champion_real": champion_real,
-        "champion_hit": (champion_real == champion) if champion_real else None,
+        "champion_hit": (champion_real == champion_pred) if champion_real else None,
+        "rounds_summary": rounds_summary,
         "favourites": teams_tbl,
         "groups": groups,
         "group_fixtures": group_fixtures(),
@@ -471,15 +490,15 @@ def _load_knockout_rounds():
     return rounds
 
 
-def _final_winner(real_ko):
-    """Campeón REAL si la final ya se jugó con resultado decisivo, si no None."""
+def _final_winner(real_ko, ko_res):
+    """Campeón REAL si la final ya se jugó (incl. resolución por penaltis),
+    si no None."""
     fin = real_ko.get("final", [])
     if not fin:
         return None
     m = fin[0]
-    if m["played"] and m["hs"] != m["as"]:
-        return m["home"] if m["hs"] > m["as"] else m["away"]
-    return None
+    r = ko_res.get(frozenset((m["home"], m["away"])))
+    return r["winner"] if r else None
 
 
 def _real_r32_entrants():
@@ -518,13 +537,36 @@ def _real_r32_entrants():
     return out if len(set(out)) == 32 else None
 
 
+SHOOTOUTS_PATH = os.path.join(HERE, "data", "shootouts.csv")
+
+
+def _shootout_winners():
+    """Ganadores de tandas de penaltis (shootouts.csv del mismo dataset),
+    por par de equipos. Fuente primaria para resolver empates de eliminatoria
+    (funciona incluso en la FINAL, donde no hay ronda posterior que inferir)."""
+    out = {}
+    try:
+        with open(SHOOTOUTS_PATH, encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                if r["date"] < KO_CUTOFF:
+                    continue
+                h, a = _fix(r["home_team"]), _fix(r["away_team"])
+                w = _fix(r["winner"])
+                if h in TEAM_GROUP and a in TEAM_GROUP:
+                    out[frozenset((h, a))] = w
+    except (FileNotFoundError, KeyError):
+        pass
+    return out
+
+
 def _knockout_results():
     """Resultados de eliminatoria ya jugados, por par de equipos:
        frozenset({a,b}) -> {'winner': equipo|None, 'pens': bool, a: goles, b: goles}.
-    Un empate se decidió por PENALTIS: el ganador se infiere de las rondas
-    siguientes (el equipo que vuelve a aparecer en un cruce posterior es el que
-    pasó). Si la ronda siguiente aún no está en el dataset, queda winner=None."""
+    Un empate se decidió por PENALTIS: el ganador sale de shootouts.csv y, si
+    aún no está ahí, se infiere de las rondas siguientes (el equipo que vuelve
+    a aparecer en un cruce posterior es el que pasó)."""
     rounds = _load_knockout_rounds()
+    shootouts = _shootout_winners()
     order = ["r32", "r16", "qf", "sf", "final"]
     # equipos presentes en los cruces de cada ronda (jugados o programados)
     present = {name: {t for m in rounds.get(name, []) for t in (m["home"], m["away"])}
@@ -540,11 +582,13 @@ def _knockout_results():
                 winner = h if hs > as_ else a
             else:
                 pens = True
-                for later in order[ri + 1:]:
-                    if h in present[later]:
-                        winner = h; break
-                    if a in present[later]:
-                        winner = a; break
+                winner = shootouts.get(frozenset((h, a)))
+                if winner is None:
+                    for later in order[ri + 1:]:
+                        if h in present[later]:
+                            winner = h; break
+                        if a in present[later]:
+                            winner = a; break
             res[frozenset((h, a))] = {"winner": winner, "pens": pens, h: hs, a: as_}
     return res
 

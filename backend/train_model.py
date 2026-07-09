@@ -160,11 +160,14 @@ def train_poisson(matches, years=POISSON_YEARS, half_life_days=POISSON_HALF_LIFE
 
 
 DATA_URL = "https://raw.githubusercontent.com/martj42/international_results/master/results.csv"
+SHOOTOUTS_URL = "https://raw.githubusercontent.com/martj42/international_results/master/shootouts.csv"
+SHOOTOUTS_PATH = os.path.join(HERE, "data", "shootouts.csv")
 
 
 def download_results(url: str = DATA_URL, timeout: int = 60) -> bool:
     """Descarga el CSV de resultados actualizado. Devuelve True si lo logró
-    (conserva el anterior si falla la red)."""
+    (conserva el anterior si falla la red). También intenta descargar el CSV
+    de tandas de penaltis (shootouts.csv), sin que su fallo bloquee nada."""
     import httpx
     try:
         r = httpx.get(url, timeout=timeout, follow_redirects=True)
@@ -174,9 +177,17 @@ def download_results(url: str = DATA_URL, timeout: int = 60) -> bool:
         os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
         with open(CSV_PATH, "wb") as f:
             f.write(r.content)
-        return True
     except Exception:
         return False
+    try:
+        r = httpx.get(SHOOTOUTS_URL, timeout=timeout, follow_redirects=True)
+        r.raise_for_status()
+        if len(r.content) > 1_000:
+            with open(SHOOTOUTS_PATH, "wb") as f:
+                f.write(r.content)
+    except Exception:
+        pass                                # best-effort: sin penaltis seguimos
+    return True
 
 
 def retrain_and_save() -> dict:

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Header from './components/Header.jsx'
 import Bracket from './components/Bracket.jsx'
 import BracketMobile from './components/BracketMobile.jsx'
@@ -6,8 +6,9 @@ import PredictionPanel from './components/PredictionPanel.jsx'
 import GroupsPanel from './components/GroupsPanel.jsx'
 import FavouritesPanel from './components/FavouritesPanel.jsx'
 import AccuracyPanel from './components/AccuracyPanel.jsx'
+import FinalReport from './components/FinalReport.jsx'
 import { useProjection, useIsDesktop } from './hooks/useProjection.js'
-import { TrophyIcon, GridIcon, ChartIcon, TargetIcon, SignalIcon, AlertIcon } from './components/Icons.jsx'
+import { TrophyIcon, GridIcon, ChartIcon, TargetIcon, SignalIcon, AlertIcon, DocIcon } from './components/Icons.jsx'
 
 const VIEWS = [
   { id: 'bracket', label: 'Cuadro', Icon: TrophyIcon },
@@ -15,9 +16,10 @@ const VIEWS = [
   { id: 'favourites', label: 'Favoritos', Icon: ChartIcon },
   { id: 'accuracy', label: 'Precisión', Icon: TargetIcon },
 ]
+const REPORT_VIEW = { id: 'report', label: 'Informe', Icon: DocIcon }
 
 const TITLES = {
-  bracket: 'Cuadro proyectado', groups: 'Fase de grupos',
+  report: 'Informe final', bracket: 'Cuadro proyectado', groups: 'Fase de grupos',
   favourites: 'Favoritos al título', accuracy: 'Precisión del modelo',
 }
 
@@ -42,6 +44,13 @@ export default function App() {
     setView('bracket')
   }
   const panelOpen = !!sel && view === 'bracket'
+
+  // Al terminar el Mundial la portada pasa sola al informe final.
+  const tournamentOver = !!data?.champion_real
+  const views = tournamentOver ? [REPORT_VIEW, ...VIEWS] : VIEWS
+  useEffect(() => {
+    if (tournamentOver) setView(v => (v === 'bracket' ? 'report' : v))
+  }, [tournamentOver])
 
   // Progreso de las eliminatorias (partidos del cuadro ya jugados de verdad)
   const groupsDone = data?.remaining_group_matches === 0
@@ -81,7 +90,7 @@ export default function App() {
           </h1>
           <div role="tablist" aria-label="Vistas"
             className="flex rounded-xl border border-white/10 overflow-x-auto text-xs">
-            {VIEWS.map(v => {
+            {views.map(v => {
               const active = view === v.id
               return (
                 <button key={v.id} onClick={() => setView(v.id)} role="tab" aria-selected={active}
@@ -141,6 +150,7 @@ export default function App() {
               )}
             </div>
           )}
+          {view === 'report' && <div className="h-full overflow-auto">{loading ? <Loading /> : <FinalReport data={data} onGoBracket={() => setView('bracket')} />}</div>}
           {view === 'groups' && <div className="h-full overflow-auto">{loading ? <Loading /> : <GroupsPanel groups={data?.groups} fixtures={data?.group_fixtures} />}</div>}
           {view === 'favourites' && <div className="h-full overflow-auto">{loading ? <Loading /> : <FavouritesPanel favourites={data?.favourites} simulations={data?.simulations} />}</div>}
           {view === 'accuracy' && <div className="h-full overflow-auto"><AccuracyPanel /></div>}
