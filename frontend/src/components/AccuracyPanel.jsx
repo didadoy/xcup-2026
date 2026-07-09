@@ -80,6 +80,41 @@ export default function AccuracyPanel() {
         del Mundial 2026 ya jugados (grupos y eliminatorias). Se actualiza solo según se juegan. Así se mide cómo lo haría con partidos que nunca vio.
       </div>
 
+      {/* Validación multi-Mundial */}
+      {d.worldcups?.length > 0 && (() => {
+        const rows = d.worldcups.filter(w => w.year !== 'global')
+        const glob = d.worldcups.find(w => w.year === 'global')
+        const maxN = Math.max(...rows.map(w => w.matches))
+        return (
+          <div className="rounded-xl bg-white/[0.03] border border-white/10 p-4 mb-3">
+            <div className="flex items-baseline justify-between mb-3 flex-wrap gap-1">
+              <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider">¿Generaliza? Últimos 3 Mundiales</h3>
+              {glob && <span className="text-[11px] text-white/45">{glob.accuracy_1x2}% global · {glob.matches} partidos</span>}
+            </div>
+            <div className="space-y-2.5">
+              {rows.map(w => (
+                <div key={w.year} className="flex items-center gap-3">
+                  <span className="w-10 text-[12px] font-bold text-white/80 flex-shrink-0 tabular-nums">{w.year}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="h-[18px] rounded-r-[4px] flex items-center justify-end pr-1.5"
+                      style={{ width: `${Math.max(18, (w.accuracy_1x2 / 65) * 100)}%`, background: '#3987e5' }}>
+                      <span className="text-[10px] font-black text-white/90">{w.accuracy_1x2}%</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-white/40 flex-shrink-0 w-24 text-right">
+                    Elo {w.baseline_elo}% · {w.matches} part.
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-white/40 mt-3">
+              Cada Mundial se predice reentrenando <strong className="text-white/60">solo con partidos anteriores</strong> a
+              ese torneo. 2022 fue atípico (muchas sorpresas); mostrarlo tal cual es parte de la honestidad del backtest.
+            </p>
+          </div>
+        )
+      })()}
+
       {/* Métricas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-3">
         <Metric label="Acierto resultado (1X2)" value={`${d.accuracy_1x2}%`} good

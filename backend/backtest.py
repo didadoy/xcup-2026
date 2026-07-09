@@ -148,6 +148,46 @@ def run():
     }
 
 
+def _eval_worldcup(all_m, year):
+    """Protocolo honesto para un Mundial: entrena SOLO con partidos anteriores
+    al torneo y predice sus partidos. Sin fuga de datos ni del futuro."""
+    test = [m for m in all_m
+            if m["tournament"] == "FIFA World Cup" and m["date"].year == year]
+    if not test:
+        return None
+    start = min(m["date"] for m in test)
+    train = [m for m in all_m if m["date"] < start]
+    predict, elo = build_predictor(train)
+    correct = base_elo = 0
+    brier = 0.0
+    for m in test:
+        pr = predict(m["home"], m["away"], m["neutral"])
+        probs = {"H": pr["p_home"], "D": pr["p_draw"], "A": pr["p_away"]}
+        real = outcome(m["hs"], m["as"])
+        correct += max(probs, key=probs.get) == real
+        base_elo += (("H" if elo.get(m["home"], 1500) >= elo.get(m["away"], 1500) else "A") == real)
+        for k in "HDA":
+            brier += (probs[k] - (1.0 if real == k else 0.0)) ** 2
+    n = len(test)
+    return {"year": year, "matches": n,
+            "accuracy_1x2": round(correct / n * 100, 1),
+            "baseline_elo": round(base_elo / n * 100, 1),
+            "brier": round(brier / n, 3)}
+
+
+def run_worldcups(years=(2018, 2022, 2026)):
+    """Valida el modelo en varios Mundiales (evidencia de que generaliza)."""
+    all_m = T.load_matches()
+    out = [_eval_worldcup(all_m, y) for y in years]
+    out = [r for r in out if r]
+    if out:
+        tot = sum(r["matches"] for r in out)
+        acc = sum(r["accuracy_1x2"] * r["matches"] for r in out) / tot
+        out.append({"year": "global", "matches": tot,
+                    "accuracy_1x2": round(acc, 1), "baseline_elo": None, "brier": None})
+    return out
+
+
 def main():
     r = run()
     print(f"Entreno con {r['train_matches']} partidos (SIN Mundial 2026).")

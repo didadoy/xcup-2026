@@ -98,6 +98,10 @@ def _compute(do_download_retrain: bool):
             wc2026.reload_data()
     proj = wc2026.project(force=True)
     bt = backtest.run()
+    try:
+        bt["worldcups"] = backtest.run_worldcups()
+    except Exception as e:
+        print("worldcups error:", e)
 
     now = int(time.time())
     nxt = int(_next_slot().timestamp())
