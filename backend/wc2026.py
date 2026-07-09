@@ -559,37 +559,50 @@ def _shootout_winners():
     return out
 
 
+def _all_knockout_matches():
+    """Todos los partidos de eliminatoria (fecha >= KO_CUTOFF), por orden de fecha."""
+    ko = []
+    with open(CSV_PATH, encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            if r["tournament"] != "FIFA World Cup" or r["date"] < KO_CUTOFF:
+                continue
+            h, a = _fix(r["home_team"]), _fix(r["away_team"])
+            if h not in TEAM_GROUP or a not in TEAM_GROUP:
+                continue
+            played = r["home_score"] not in ("NA", "")
+            ko.append({"date": r["date"], "home": h, "away": a, "played": played,
+                       "hs": int(r["home_score"]) if played else None,
+                       "as": int(r["away_score"]) if played else None})
+    ko.sort(key=lambda m: m["date"])
+    return ko
+
+
 def _knockout_results():
     """Resultados de eliminatoria ya jugados, por par de equipos:
        frozenset({a,b}) -> {'winner': equipo|None, 'pens': bool, a: goles, b: goles}.
     Un empate se decidió por PENALTIS: el ganador sale de shootouts.csv y, si
-    aún no está ahí, se infiere de las rondas siguientes (el equipo que vuelve
-    a aparecer en un cruce posterior es el que pasó)."""
-    rounds = _load_knockout_rounds()
+    aún no está ahí, se infiere por FECHA (el equipo que vuelve a jugar un
+    partido posterior es el que pasó)."""
+    matches = _all_knockout_matches()
     shootouts = _shootout_winners()
-    order = ["r32", "r16", "qf", "sf", "final"]
-    # equipos presentes en los cruces de cada ronda (jugados o programados)
-    present = {name: {t for m in rounds.get(name, []) for t in (m["home"], m["away"])}
-               for name in order}
     res = {}
-    for ri, name in enumerate(order):
-        for m in rounds.get(name, []):
-            if not m["played"]:
-                continue
-            h, a, hs, as_ = m["home"], m["away"], m["hs"], m["as"]
-            winner, pens = None, False
-            if hs != as_:
-                winner = h if hs > as_ else a
-            else:
-                pens = True
-                winner = shootouts.get(frozenset((h, a)))
-                if winner is None:
-                    for later in order[ri + 1:]:
-                        if h in present[later]:
-                            winner = h; break
-                        if a in present[later]:
-                            winner = a; break
-            res[frozenset((h, a))] = {"winner": winner, "pens": pens, h: hs, a: as_}
+    for i, m in enumerate(matches):
+        if not m["played"]:
+            continue
+        h, a, hs, as_ = m["home"], m["away"], m["hs"], m["as"]
+        winner, pens = None, False
+        if hs != as_:
+            winner = h if hs > as_ else a
+        else:
+            pens = True
+            winner = shootouts.get(frozenset((h, a)))
+            if winner is None:
+                for later in matches[i + 1:]:
+                    if h in (later["home"], later["away"]):
+                        winner = h; break
+                    if a in (later["home"], later["away"]):
+                        winner = a; break
+        res[frozenset((h, a))] = {"winner": winner, "pens": pens, h: hs, a: as_}
     return res
 
 

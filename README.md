@@ -1,52 +1,98 @@
 # xCup 2026
 
-Predicción del cuadro eliminatorio del **Mundial 2026** mediante un modelo
-estadístico entrenado sobre datos reales: ~49.500 partidos internacionales
-oficiales (1872-2026). No genera resultados al azar; el modelo se valida
-*out-of-sample* (reentrenado sin los partidos del Mundial 2026) y alcanza en
-torno al 55 % de acierto de resultado (1X2), con probabilidades calibradas.
+[![CI](https://github.com/didadoy/xcup-2026/actions/workflows/ci.yml/badge.svg)](https://github.com/didadoy/xcup-2026/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/demo-xcup--2026.vercel.app-3b82f6)](https://xcup-2026.vercel.app)
 
-La aplicación web muestra, además de la proyección, una comparación
-**predicho vs. real** que se actualiza conforme se juegan los partidos.
+Predicting the **2026 FIFA World Cup** bracket with a statistical model trained on
+real data: ~49,500 official international matches (1872–2026). Not a random score
+generator — the model is validated **out-of-sample** (retrained without the target
+World Cup) and reaches ~55% result (1X2) accuracy across the last three World Cups,
+with well-calibrated probabilities.
 
-## Funcionalidades
+The web app shows the projection *and* a live **predicted-vs-real** comparison that
+updates as matches are played, plus a final retrospective report when the tournament
+ends — so it stays meaningful long after the final whistle.
 
-- **Cuadro (16avos a final).** Con la fase de grupos cerrada, se parte de los
-  cruces reales de eliminatoria y se avanza con el resultado real donde ya se
-  jugó, o con el favorito del modelo donde falta. Cada cruce indica si la
-  predicción acertó el emparejamiento y marca los partidos ya disputados con
-  su resultado.
-- **Predicción por partido.** Goles esperados (xG), probabilidades 1X2 y
-  distribución de marcadores para cualquier cruce.
-- **Grupos.** Clasificación real de los 12 grupos y predicción de cada partido.
-- **Favoritos.** Probabilidad de cada selección de ganar el torneo.
-- **Precisión.** Backtest *out-of-sample* con métricas (acierto 1X2, marcador
-  exacto, Brier, log-loss, error de goles) y la tabla predicho-vs-real de todos
-  los partidos jugados. La muestra crece y se recalcula conforme avanza el
-  Mundial.
+> **Live:** https://xcup-2026.vercel.app
 
-## Modelo
+![xCup 2026](frontend/public/og-image.png)
 
-- **Elo** (World Football Elo Rating System) procesado sobre toda la historia.
-- **Poisson de ataque/defensa** (GLM, scikit-learn) con mayor peso a los
-  partidos recientes y de mayor importancia.
-- **Monte Carlo** para proyectar los partidos pendientes.
-- Fuente de datos: [martj42/international_results](https://github.com/martj42/international_results).
+## Features
 
-## Arquitectura
+- **Bracket (Round of 32 → Final).** Once the group stage is over, it starts from the
+  real knockout matchups and advances with the **real result** where a match has been
+  played, or the model’s favourite where it hasn’t. Each tie shows whether the
+  prediction got the matchup right (✓/✗) and marks played matches (score, penalties).
+- **Per-match prediction.** Expected goals (xG), 1X2 probabilities and a score
+  distribution for any tie.
+- **Groups.** Real standings for all 12 groups and a prediction for every match.
+- **Favourites.** Each team’s probability of winning the tournament.
+- **Accuracy.** Out-of-sample backtest with metrics (1X2, exact score, Brier,
+  log-loss), a **reliability diagram**, and validation across the **2018/2022/2026**
+  World Cups. Grows and recomputes as the tournament progresses.
+- **How it works.** An explainer with interactive charts (Elo evolution, Poisson
+  score matrix, champion distribution).
+- **Final report.** When the final is played, the home view switches automatically to
+  a retrospective: predicted vs actual champion and hit rates by round.
+- **Bilingual** (ES/EN) and responsive.
 
-- **Backend** (FastAPI). Precalcula en memoria la proyección y el backtest; las
-  peticiones solo leen esa caché, de modo que escala con muchos usuarios. El
-  recálculo está **dirigido por peticiones**: cuando llega una petición y ha
-  pasado la franja programada (cada 6 h), se descargan los resultados nuevos, se
-  reentrena y se recalcula en segundo plano. El estado se persiste en disco y
-  hay una semilla commiteada (`backend/data/state_seed.json`) para que el
-  arranque en frío no tenga que simular.
-- **Frontend** (React + Vite + Tailwind). Caché *stale-while-revalidate* en el
-  navegador: muestra al instante lo último guardado y solo descarga la versión
-  completa cuando el backend tiene datos más nuevos.
+## How the model works
 
-## Ejecución local
+1. **Elo** (World Football Elo Rating System) processed over the full history — K
+   varies with tournament importance, goal margin and home advantage.
+2. **Attack/defence Poisson** GLM (scikit-learn) with recency and
+   tournament-importance sample weights → expected goals and the score matrix.
+3. **Monte Carlo** — the remaining bracket is simulated 40,000 times (extra time and
+   penalties included); probabilities are frequencies over those runs.
+
+Validation is **honest**: for each World Cup the model is retrained using only matches
+played *before* that tournament, so no future information leaks in.
+
+Data source: [martj42/international_results](https://github.com/martj42/international_results)
+(`results.csv` + `shootouts.csv`).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    DS[("martj42 dataset<br/>results + shootouts")]
+    subgraph HF["Hugging Face Space (Docker)"]
+      API["FastAPI<br/>Elo + Poisson + Monte Carlo<br/>in-memory cache"]
+    end
+    subgraph V["Vercel"]
+      FE["React + Vite<br/>+ Tailwind"]
+    end
+    USER(["Visitor"])
+
+    USER -->|loads| FE
+    FE -->|/api/*| API
+    API -->|request-driven refresh<br/>download + retrain| DS
+    GH["GitHub push to main"] -->|Action syncs backend/| HF
+    GH -->|auto-deploy| V
+```
+
+The backend precomputes the projection and backtest **in memory**; requests only read
+that cache, so it scales to many users. Refresh is **request-driven**: when a request
+arrives after a scheduled slot (every 6h), it downloads new results, retrains and
+recomputes in the background. State is persisted to disk, with a committed seed
+(`backend/data/state_seed.json`) so cold starts never have to simulate to serve.
+
+## Repository layout
+
+```
+backend/            FastAPI service (Python)
+  main.py           API + request-driven refresh loop
+  model.py          Elo + Poisson prediction (loads trained_ratings.json)
+  train_model.py    trains Elo + Poisson, writes trained_ratings.json
+  wc2026.py         bracket: real vs predicted, penalties, thirds, Monte Carlo
+  backtest.py       out-of-sample validation + calibration + multi-World-Cup
+  tests/            pytest suite
+frontend/           React + Vite + Tailwind SPA
+  src/components/   bracket, groups, favourites, accuracy, how-it-works, report
+  src/i18n.jsx      lightweight ES/EN i18n (no libraries)
+```
+
+## Run locally
 
 Backend (Python 3.12+):
 
@@ -64,28 +110,38 @@ npm install
 npm run dev
 ```
 
-Abre `http://localhost:5173`. En Windows, `start.ps1` (en la raíz) arranca
-ambos a la vez.
+Open `http://localhost:5173`. On Windows, `start.ps1` launches both at once.
 
-## Despliegue
+## Tests
 
-- **Backend** → Hugging Face Spaces (SDK Docker). El `Dockerfile` y el `README`
-  del Space están en `backend/`. El workflow `.github/workflows/deploy-hf-space.yml`
-  sincroniza `backend/` con el Space en cada push a `main`; requiere los secretos
-  de repositorio `HF_TOKEN` (token de escritura) y `HF_SPACE` (`usuario/espacio`).
-- **Frontend** → Vercel. *Root Directory* = `frontend` y variable de entorno
-  `VITE_API_URL` con la URL del backend (sin barra final). Las variables `VITE_*`
-  se incrustan en el build, por lo que un cambio requiere redesplegar.
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest tests/ -q
+```
 
-## Stack
+Tests cover the non-trivial logic: probability coherence of the model, group-match
+filtering, best-third slot assignment, and penalty-winner inference. CI runs the tests
+and a frontend build on every push and pull request.
 
-| Capa | Tecnologías |
+## Deployment
+
+- **Backend** → Hugging Face Spaces (Docker SDK). A GitHub Action
+  (`.github/workflows/deploy-hf-space.yml`) syncs `backend/` to the Space on each push
+  to `main` (needs repo secrets `HF_TOKEN` and `HF_SPACE`).
+- **Frontend** → Vercel. Root directory `frontend`, env var `VITE_API_URL` pointing to
+  the backend URL (no trailing slash).
+
+## Tech stack
+
+| Layer | Tech |
 |---|---|
 | Frontend | React 18, Vite 6, Tailwind CSS 3 |
 | Backend | FastAPI, NumPy, scikit-learn, SciPy |
-| Datos | Resultados internacionales reales (CSV) |
+| Data | Real international results (CSV) |
+| CI/CD | GitHub Actions, Vercel, Hugging Face Spaces |
 
-## Aviso
+## Disclaimer
 
-Proyección estadística con fines informativos y de aprendizaje. No es un
-pronóstico oficial ni una recomendación de apuestas.
+A statistical projection for learning and entertainment. Not an official forecast or
+betting advice.
