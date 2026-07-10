@@ -235,12 +235,16 @@ export default function Bracket({ bracket, selectedKey, onSelect }) {
           <SlotRow slot={final?.[0]} top tp={tp} />
           <SlotRow slot={final?.[1]} tp={tp} />
         </button>
-        <TrophyIcon size={34} className="text-amber-400 mb-1.5" />
+        <div className="relative mb-1.5">
+          <TrophyIcon size={34} className="text-amber-400" />
+          <div className="absolute -inset-2 rounded-full blur-lg opacity-30 -z-10"
+            style={{ background: 'radial-gradient(circle,#f0b93c,transparent)' }} />
+        </div>
         <div className="text-[9px] uppercase tracking-widest text-white/40">{t('common.champion')}</div>
         <div className="flex items-center gap-1.5 mt-1.5">
           {champ?.team && getFlagUrl(champ.team) &&
             <img src={getFlagUrl(champ.team, 40)} alt="" width={26} height={17} className="rounded-[2px]" style={{ height: 17 }} />}
-          <span className="text-base font-black text-white">{champ ? teamLabel(champ.team) : '—'}</span>
+          <span className="text-lg font-black champ-gold">{champ ? teamLabel(champ.team) : '—'}</span>
         </div>
         {champ?.prob != null && <div className="text-[11px] text-amber-400/80 font-bold mt-0.5">{champ.prob}%</div>}
       </div>

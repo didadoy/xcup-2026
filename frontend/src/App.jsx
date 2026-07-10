@@ -71,12 +71,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col noise"
-      style={{ background: 'linear-gradient(160deg,#04060f 0%,#060914 60%,#080c1a 100%)' }}>
+      style={{ background: 'radial-gradient(1100px 480px at 50% -12%, rgba(47,107,255,0.10), transparent 62%), linear-gradient(165deg,#04060f 0%,#060a16 55%,#0a0e1f 100%)' }}>
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute -top-20 left-1/3 w-[600px] h-[600px] rounded-full opacity-[0.04]"
-          style={{ background: 'radial-gradient(circle,#3b82f6,transparent)', filter: 'blur(120px)' }} />
-        <div className="absolute top-1/2 right-1/4 w-72 h-72 rounded-full opacity-[0.03]"
-          style={{ background: 'radial-gradient(circle,#7c3aed,transparent)', filter: 'blur(80px)' }} />
+        <div className="absolute -top-24 left-1/3 w-[640px] h-[640px] rounded-full opacity-[0.05]"
+          style={{ background: 'radial-gradient(circle,#2f6bff,transparent)', filter: 'blur(120px)' }} />
+        <div className="absolute top-1/2 right-1/4 w-80 h-80 rounded-full opacity-[0.04]"
+          style={{ background: 'radial-gradient(circle,#8b31e8,transparent)', filter: 'blur(90px)' }} />
+        <div className="absolute bottom-0 left-1/4 w-96 h-64 rounded-full opacity-[0.03]"
+          style={{ background: 'radial-gradient(circle,#0ea5e9,transparent)', filter: 'blur(100px)' }} />
       </div>
 
       <div className="relative z-10 flex flex-col min-h-screen h-screen">
@@ -90,13 +92,16 @@ export default function App() {
             <span className="ml-2 text-xs sm:text-sm font-normal text-white/30">{t('title.sub')}</span>
           </h1>
           <div role="tablist" aria-label="Vistas"
-            className="flex rounded-xl border border-white/10 overflow-x-auto text-xs">
+            className="flex rounded-xl border border-white/10 overflow-x-auto text-xs bg-white/[0.025] p-1 gap-0.5">
             {views.map(v => {
               const active = view === v.id
               return (
                 <button key={v.id} onClick={() => setView(v.id)} role="tab" aria-selected={active}
-                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 font-semibold whitespace-nowrap transition-colors border-l first:border-l-0 border-white/10 ${
-                    active ? 'bg-blue-600/25 text-blue-300' : 'text-white/55 hover:text-white hover:bg-white/5'}`}>
+                  className={`flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+                    active
+                      ? 'text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
+                      : 'text-white/50 hover:text-white hover:bg-white/[0.06]'}`}
+                  style={active ? { background: 'linear-gradient(135deg, rgba(47,107,255,0.42), rgba(139,49,232,0.34))' } : undefined}>
                   <v.Icon size={15} />
                   <span>{t(`nav.${v.id}`)}</span>
                 </button>
@@ -174,7 +179,8 @@ export default function App() {
           )}
         </div>
 
-        <footer className="flex-shrink-0 py-2 px-4 sm:px-6 flex items-center justify-between gap-3 border-t border-white/[0.05]">
+        <footer className="flex-shrink-0 py-2 px-4 sm:px-6 flex items-center justify-between gap-3"
+          style={{ borderTop: '1px solid transparent', borderImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.09), transparent) 1' }}>
           <span className="text-[10px] text-white/40 truncate">{t('footer.disclaimer')}</span>
           <span className="text-[10px] text-white/40 hidden sm:block flex-shrink-0">{t('footer.model', { n: data?.model?.n_matches?.toLocaleString(lang==='en'?'en-GB':'es') })}</span>
         </footer>

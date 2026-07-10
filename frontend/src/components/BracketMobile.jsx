@@ -69,7 +69,7 @@ export default function BracketMobile({ bracket, champion, selectedKey, onSelect
           <div className="flex items-center gap-1.5">
             {champion && getFlagUrl(champion) &&
               <img src={getFlagUrl(champion, 40)} alt="" width={22} height={15} className="rounded-[2px]" style={{ height: 15 }} />}
-            <span className="text-base font-black text-white truncate">{champion ? teamLabel(champion) : '—'}</span>
+            <span className="text-base font-black champ-gold truncate">{champion ? teamLabel(champion) : '—'}</span>
           </div>
         </div>
         {champProb != null && <span className="text-sm font-black text-amber-400">{champProb}%</span>}

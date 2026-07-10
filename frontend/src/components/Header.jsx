@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { BallIcon, ClockIcon } from './Icons.jsx'
+import { ClockIcon } from './Icons.jsx'
+import Logo from './Logo.jsx'
 import { useI18n, localeOf } from '../i18n.jsx'
 
 function fmt(ts, lang) {
@@ -40,20 +41,23 @@ export default function Header({ trainedThrough, lastUpdated, refreshing, onHome
     prev.current = lastUpdated
   }, [lastUpdated])
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3 border-b border-white/5"
-      style={{ background: 'rgba(4, 6, 15, 0.85)', backdropFilter: 'blur(20px)' }}>
+    <header className="sticky top-0 z-50"
+      style={{ background: 'rgba(4, 6, 15, 0.82)', backdropFilter: 'blur(20px)' }}>
+      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 sm:py-3">
 
       <button onClick={onHome} aria-label="Inicio"
-        className="flex items-center gap-2.5 rounded-lg hover:opacity-90 transition-opacity">
+        className="group flex items-center gap-2.5 rounded-lg transition-transform hover:scale-[1.02] active:scale-100">
         <div className="relative">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600 to-violet-700 flex items-center justify-center text-white">
-            <BallIcon size={20} />
-          </div>
-          <div className="absolute -inset-0.5 bg-gradient-to-br from-blue-600 to-violet-700 rounded-lg blur opacity-40 -z-10" />
+          <Logo size={36} />
+          <div className="absolute -inset-1 rounded-xl blur-md opacity-35 group-hover:opacity-60 transition-opacity -z-10"
+            style={{ background: 'linear-gradient(135deg,#2f6bff,#8b31e8)' }} />
         </div>
-        <div className="leading-tight">
-          <span className="text-white font-bold text-sm sm:text-base tracking-tight">xCup</span>
-          <span className="ml-1.5 text-blue-400 font-bold text-sm sm:text-base">2026</span>
+        <div className="leading-none">
+          <span className="text-white font-black text-base sm:text-lg tracking-tight">xCup</span>
+          <span className="ml-1.5 font-black text-base sm:text-lg tracking-tight brand-text">2026</span>
+          <div className="hidden sm:block text-[8.5px] font-semibold uppercase tracking-[0.22em] text-white/35 mt-1">
+            World Cup Predictor
+          </div>
         </div>
       </button>
 
@@ -81,6 +85,9 @@ export default function Header({ trainedThrough, lastUpdated, refreshing, onHome
         ) : null}
         <LangToggle lang={lang} setLang={setLang} />
       </div>
+      </div>
+      {/* hairline degradado bajo el header */}
+      <div className="h-px bg-gradient-to-r from-transparent via-blue-500/35 to-transparent" />
     </header>
   )
 }

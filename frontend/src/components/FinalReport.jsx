@@ -33,7 +33,7 @@ function ChampCard({ title, team, extra, highlight }) {
       <div className="flex items-center justify-center gap-2">
         {team && getFlagUrl(team) &&
           <img src={getFlagUrl(team, 80)} alt="" width={34} height={23} className="rounded-[3px]" style={{ height: 23 }} />}
-        <span className="text-xl sm:text-2xl font-black text-white">{team ? teamLabel(team) : '—'}</span>
+        <span className={`text-xl sm:text-2xl font-black ${highlight ? 'champ-gold' : 'text-white'}`}>{team ? teamLabel(team) : '—'}</span>
       </div>
       {extra && <div className="text-[11px] text-amber-300/80 font-semibold mt-1.5">{extra}</div>}
     </div>

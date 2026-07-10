@@ -45,11 +45,36 @@ body {
 ::-webkit-scrollbar-thumb { background: #1a2240; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
 
-/* Glass card */
+/* Tokens de marca */
+:root {
+  --brand-a: #2f6bff;
+  --brand-b: #8b31e8;
+  --gold-a: #ffe9a8;
+  --gold-b: #f0b93c;
+}
+
+/* Texto con degradado de marca */
+.brand-text {
+  background: linear-gradient(120deg, #6ea0ff 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Dorado del campeón */
+.champ-gold {
+  background: linear-gradient(180deg, var(--gold-a) 20%, var(--gold-b) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Glass card (v2: brillo superior sutil + borde más fino) */
 .glass {
-  background: rgba(255, 255, 255, 0.04);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.028));
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .glass-hover:hover {
