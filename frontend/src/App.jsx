@@ -86,11 +86,13 @@ export default function App() {
           onHome={() => { setSel(null); setView(tournamentOver ? 'report' : 'bracket') }} />
 
         {/* Barra: título + pestañas (responsive) */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 px-4 sm:px-6 pt-3 sm:pt-4 flex-shrink-0">
-          <h1 className="text-lg sm:text-xl font-black text-white tracking-tight mr-auto">
-            {t(`title.${view}`)}
-            <span className="ml-2 text-xs sm:text-sm font-normal text-white/30">{t('title.sub')}</span>
-          </h1>
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2 px-4 sm:px-6 pt-3 sm:pt-4 flex-shrink-0">
+          <div className="mr-auto min-w-0">
+            <div className="eyebrow mb-0.5">{t('title.sub2')}</div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-none">
+              {t(`title.${view}`)}
+            </h1>
+          </div>
           <div role="tablist" aria-label="Vistas"
             className="flex rounded-xl border border-white/10 overflow-x-auto text-xs bg-white/[0.025] p-1 gap-0.5">
             {views.map(v => {

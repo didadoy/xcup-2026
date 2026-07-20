@@ -3,9 +3,9 @@ import { useMatchPrediction } from '../hooks/useProjection.js'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
 import { useI18n } from '../i18n.jsx'
 
-// Paleta categórica validada (CVD + contraste) sobre la superficie oscura.
-const SERIES = ['#3987e5', '#199e70', '#c98500', '#9085e9', '#e66767']
-const GRID_INK = 'rgba(255,255,255,0.08)'
+// Paleta categórica validada (CVD + contraste) sobre superficie navy.
+const SERIES = ['#3987e5', '#d55181', '#c98500', '#199e70', '#9085e9']
+const GRID_INK = 'rgba(255,255,255,0.055)'
 const AXIS_INK = 'rgba(255,255,255,0.40)'
 
 // ── Tooltip compartido (div posicionado sobre el gráfico) ────────────────
@@ -199,8 +199,8 @@ export function ChampBars({ favourites }) {
             <span className="truncate">{teamLabel(row.team)}</span>
           </span>
           <div className="flex-1 h-[18px]">
-            <div className="h-full rounded-r-[4px]"
-              style={{ width: `${Math.max(1.5, (row.champion / max) * 100)}%`, background: '#3987e5' }} />
+            <div className="h-full rounded-r-[4px] grow-x"
+              style={{ width: `${Math.max(1.5, (row.champion / max) * 100)}%`, background: 'linear-gradient(90deg,#3f7bff,#9b40f0)' }} />
           </div>
           <span className="w-11 text-right text-[11px] font-bold text-white/80 tabular-nums flex-shrink-0">
             {row.champion}%
@@ -215,10 +215,11 @@ export function ChampBars({ favourites }) {
 // ── Página ───────────────────────────────────────────────────────────────
 function Step({ n, title, children }) {
   return (
-    <div className="glass rounded-xl p-3.5">
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className="w-5 h-5 rounded-full bg-blue-500/25 border border-blue-400/40 text-blue-200 text-[10px] font-black flex items-center justify-center">{n}</span>
-        <span className="text-[12px] font-bold text-white">{title}</span>
+    <div className="glass glass-hover rounded-2xl p-4">
+      <div className="flex items-center gap-2.5 mb-2">
+        <span className="w-6 h-6 rounded-lg text-white text-[11px] font-black flex items-center justify-center flex-shrink-0"
+          style={{ background: 'linear-gradient(135deg,#3f7bff,#9b40f0)' }}>{n}</span>
+        <span className="text-[12.5px] font-bold text-white">{title}</span>
       </div>
       <p className="text-[11px] leading-relaxed text-white/55">{children}</p>
     </div>
@@ -228,8 +229,8 @@ function Step({ n, title, children }) {
 function Section({ title, sub, children }) {
   return (
     <section className="mb-8">
-      <h3 className="text-sm font-black text-white mb-0.5">{title}</h3>
-      {sub && <p className="text-[11px] text-white/45 mb-3">{sub}</p>}
+      <h3 className="text-[15px] font-extrabold text-white tracking-tight mb-1">{title}</h3>
+      {sub && <p className="text-[11px] text-white/45 mb-3.5 leading-relaxed">{sub}</p>}
       {children}
     </section>
   )

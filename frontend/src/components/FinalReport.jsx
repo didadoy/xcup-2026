@@ -2,40 +2,28 @@ import { useBacktest } from '../hooks/useProjection.js'
 import { getFlagUrl, teamLabel } from '../data/teams.js'
 import { TrophyIcon } from './Icons.jsx'
 import { useI18n } from '../i18n.jsx'
+import { SectionHead, StatTile, Meter, Team } from './ui.jsx'
 
-function Tile({ label, value, sub, good }) {
+// Barra doble por ronda: aciertos de cruce (verde) y favorito que pasó (azul).
+function RoundRow({ label, hits, det, fav, played }) {
+  const p1 = det > 0 ? (hits / det) * 100 : 0
+  const p2 = played > 0 ? (fav / played) * 100 : 0
   return (
-    <div className="glass rounded-xl p-3 sm:p-4">
-      <div className="text-[10px] sm:text-[11px] text-white/40 uppercase tracking-wide">{label}</div>
-      <div className={`text-2xl sm:text-3xl font-black mt-1 ${good ? 'text-emerald-300' : 'text-white'}`}>{value}</div>
-      {sub && <div className="text-[10px] sm:text-[11px] text-white/40 mt-0.5">{sub}</div>}
-    </div>
-  )
-}
-
-function Bar({ label, num, den, accent }) {
-  const pct = den > 0 ? Math.round((num / den) * 100) : 0
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="w-24 sm:w-28 text-[11px] text-white/55 flex-shrink-0">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-white/[0.07] overflow-hidden">
-        <div className={`h-full rounded-full ${accent}`} style={{ width: `${pct}%` }} />
+    <div className="grid grid-cols-[64px_1fr] sm:grid-cols-[92px_1fr] gap-x-3 gap-y-1 items-center py-1.5">
+      <span className="text-[11px] font-semibold text-white/60">{label}</span>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-[7px] rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="h-full rounded-full grow-x" style={{ width: `${Math.max(det ? 2 : 0, p1)}%`, background: 'linear-gradient(90deg,#199e70,#34d17e)' }} />
+        </div>
+        <span className="w-9 text-right text-[11px] font-bold text-white/80 tnum flex-shrink-0">{det ? `${hits}/${det}` : '—'}</span>
       </div>
-      <span className="w-14 text-right text-[11px] font-bold text-white/80 tabular-nums flex-shrink-0">{num}/{den}</span>
-    </div>
-  )
-}
-
-function ChampCard({ title, team, extra, highlight }) {
-  return (
-    <div className={`flex-1 glass rounded-2xl p-4 sm:p-5 text-center border ${highlight ? 'border-amber-400/40' : 'border-white/10'}`}>
-      <div className="text-[10px] uppercase tracking-widest text-white/40 mb-2">{title}</div>
-      <div className="flex items-center justify-center gap-2">
-        {team && getFlagUrl(team) &&
-          <img src={getFlagUrl(team, 80)} alt="" width={34} height={23} className="rounded-[3px]" style={{ height: 23 }} />}
-        <span className={`text-xl sm:text-2xl font-black ${highlight ? 'champ-gold' : 'text-white'}`}>{team ? teamLabel(team) : '—'}</span>
+      <span />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 h-[7px] rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="h-full rounded-full grow-x" style={{ width: `${Math.max(played ? 2 : 0, p2)}%`, background: 'linear-gradient(90deg,#3f7bff,#7aa8ff)' }} />
+        </div>
+        <span className="w-9 text-right text-[11px] font-bold text-white/60 tnum flex-shrink-0">{played ? `${fav}/${played}` : '—'}</span>
       </div>
-      {extra && <div className="text-[11px] text-amber-300/80 font-semibold mt-1.5">{extra}</div>}
     </div>
   )
 }
@@ -45,78 +33,91 @@ export default function FinalReport({ data, onGoBracket }) {
   const { data: bt } = useBacktest()
   if (!data?.champion_real) return null
 
-  const ROUND_LABELS = { r32: t('round.r32'), r16: t('round.r16'), qf: t('round.qf'), sf: t('round.sfLong'), final: t('round.final') }
+  const RL = { r32: t('round.r32'), r16: t('round.r16'), qf: t('round.qf'), sf: t('round.sfLong'), final: t('round.final') }
   const hit = data.champion_hit
+  const champ = data.champion_real
   const rs = data.rounds_summary || {}
   const totHits = Object.values(rs).reduce((n, s) => n + (s.hits || 0), 0)
   const totDet = Object.values(rs).reduce((n, s) => n + (s.determined || 0), 0)
   const totFav = Object.values(rs).reduce((n, s) => n + (s.fav_won || 0), 0)
   const totPlayed = Object.values(rs).reduce((n, s) => n + (s.played || 0), 0)
+  const flag = getFlagUrl(champ, 160)
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto pb-10">
-      <div className="text-center mb-5">
-        <TrophyIcon size={40} className="text-amber-400 mx-auto mb-2" />
-        <h2 className="text-xl sm:text-2xl font-black text-white">{t('rep.over')}</h2>
-        <p className="text-xs sm:text-sm text-white/50 mt-1">{t('rep.sub')}</p>
-      </div>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 pb-12">
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-3">
-        <ChampCard title={t('rep.champModel')} team={data.champion_pred}
-          extra={data.champion_pred_prob != null ? t('rep.champModelProb', { p: data.champion_pred_prob }) : null} />
-        <ChampCard title={t('rep.champReal')} team={data.champion_real} highlight />
-      </div>
+      {/* ── Hero ─────────────────────────────────────────────── */}
+      <div className="relative rounded-3xl overflow-hidden mb-6 fade-up">
+        {/* glow dorado de fondo */}
+        <div className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(120% 90% at 50% -10%, rgba(238,182,58,0.14), transparent 60%), linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.015))' }} />
+        <div className="absolute inset-0 -z-10 gold-halo" style={{ background: 'radial-gradient(60% 55% at 50% 30%, rgba(238,182,58,0.10), transparent 70%)' }} />
+        <div className="border border-amber-300/15 rounded-3xl px-6 py-8 sm:py-10 text-center">
+          <div className="eyebrow text-amber-300/70 mb-4">{t('rep.eyebrow')}</div>
 
-      <div className={`rounded-xl px-4 py-3 mb-6 text-center text-sm font-bold ${
-        hit ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
-            : 'bg-rose-500/10 border border-rose-500/30 text-rose-300'}`}>
-        {hit ? t('rep.hit') : t('rep.miss')}
-      </div>
-
-      {bt && !bt.loading && (
-        <>
-          <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">
-            {t('rep.perf', { n: bt.test_matches })}
-          </h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-2">
-            <Tile label={t('acc.mAccuracy')} value={`${bt.accuracy_1x2}%`} good
-              sub={t('acc.mAccuracySub', { h: bt.baseline_home, e: bt.baseline_elo })} />
-            <Tile label={t('acc.mExact')} value={`${bt.exact_score}%`} sub={t('acc.mExactSub')} />
-            <Tile label="Brier ↓" value={bt.brier} good sub={t('acc.mBrierSub', { b: bt.brier_baseline })} />
-            <Tile label="Log-loss ↓" value={bt.logloss} good sub={t('acc.mBrierSub', { b: bt.logloss_baseline })} />
+          <div className="relative inline-block mb-4">
+            <div className="absolute -inset-6 rounded-full blur-2xl gold-halo -z-10" style={{ background: 'radial-gradient(circle, rgba(238,182,58,0.45), transparent 70%)' }} />
+            {flag && <img src={flag} alt="" className="w-[100px] h-[67px] sm:w-[128px] sm:h-[86px] rounded-lg object-cover mx-auto shadow-2xl ring-1 ring-white/15" />}
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-gradient-to-b from-amber-200 to-amber-500 flex items-center justify-center shadow-lg ring-2 ring-[#0b0e18]">
+              <TrophyIcon size={22} className="text-amber-900" />
+            </div>
           </div>
-          <p className="text-[11px] text-white/45 mb-6">{tr('rep.oos')}</p>
-        </>
+
+          <h2 className="text-4xl sm:text-6xl font-black champ-gold tracking-tight mt-4 leading-none">{teamLabel(champ)}</h2>
+          <p className="text-sm sm:text-base text-white/55 mt-2 font-medium">{t('rep.worldChampion')}</p>
+
+          {/* Veredicto de la predicción */}
+          <div className={`inline-flex items-center gap-2.5 mt-6 pl-3 pr-4 py-2 rounded-full border text-sm font-bold ${
+            hit ? 'bg-emerald-500/12 border-emerald-400/30 text-emerald-200'
+                : 'bg-rose-500/12 border-rose-400/30 text-rose-200'}`}>
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[13px] ${hit ? 'bg-emerald-400/25' : 'bg-rose-400/25'}`}>
+              {hit ? '✓' : '✗'}
+            </span>
+            {hit
+              ? tr('rep.calledIt', { p: data.champion_pred_prob })
+              : tr('rep.missedIt', { t: teamLabel(data.champion_pred) })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Métricas del torneo ──────────────────────────────── */}
+      {bt && !bt.loading && (
+        <div className="fade-up" style={{ animationDelay: '.05s' }}>
+          <SectionHead eyebrow={t('rep.perfEyebrow')} title={t('rep.perf', { n: bt.test_matches })} />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-2 stagger">
+            <StatTile label={t('acc.mAccuracy')} value={`${bt.accuracy_1x2}%`} accent="good" sub={t('acc.mAccuracySub', { h: bt.baseline_home, e: bt.baseline_elo })} />
+            <StatTile label={t('rep.champCalled')} value={hit ? '✓' : '✗'} accent={hit ? 'good' : 'default'} sub={t('rep.champCalledSub', { t: teamLabel(data.champion_pred) })} />
+            <StatTile label="Brier ↓" value={bt.brier} accent="good" sub={t('acc.mBrierSub', { b: bt.brier_baseline })} />
+            <StatTile label="Log-loss ↓" value={bt.logloss} accent="good" sub={t('acc.mBrierSub', { b: bt.logloss_baseline })} />
+          </div>
+          <p className="text-[11px] text-white/40 mb-7">{tr('rep.oos')}</p>
+        </div>
       )}
 
-      <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider mb-2">{t('rep.byRound')}</h3>
-      <div className="glass rounded-xl p-4 space-y-4 mb-2">
-        <div>
-          <div className="text-[11px] text-white/50 mb-2">
-            {tr('rep.hitsLabel')}<strong className="text-emerald-300">{totHits}/{totDet}</strong>
+      {/* ── El cuadro, ronda a ronda ─────────────────────────── */}
+      <div className="fade-up" style={{ animationDelay: '.1s' }}>
+        <SectionHead eyebrow={t('rep.bracketEyebrow')} title={t('rep.byRound')} />
+        <div className="glass rounded-2xl p-4 sm:p-5">
+          <div className="flex items-center gap-4 mb-3 pl-[64px] sm:pl-[92px]">
+            <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-white/55">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#34d17e' }} /> {t('rep.hitsLegend')} · {totHits}/{totDet}
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold text-white/55">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#3f7bff' }} /> {t('rep.favLegend')} · {totFav}/{totPlayed}
+            </span>
           </div>
-          <div className="space-y-1.5">
+          <div className="divide-y divide-white/[0.05]">
             {Object.entries(rs).map(([r, s]) => (
-              <Bar key={r} label={ROUND_LABELS[r]} num={s.hits} den={s.determined} accent="bg-emerald-400/80" />
+              <RoundRow key={r} label={RL[r]} hits={s.hits} det={s.determined} fav={s.fav_won} played={s.played} />
             ))}
           </div>
         </div>
-        <div className="border-t border-white/[0.07] pt-4">
-          <div className="text-[11px] text-white/50 mb-2">
-            {tr('rep.favLabel')}<strong className="text-blue-300">{totFav}/{totPlayed}</strong>
-          </div>
-          <div className="space-y-1.5">
-            {Object.entries(rs).map(([r, s]) => (
-              <Bar key={r} label={ROUND_LABELS[r]} num={s.fav_won} den={s.played} accent="bg-blue-400/80" />
-            ))}
-          </div>
-        </div>
+        <p className="text-[11px] text-white/40 mt-3">{t('rep.chainNote')}</p>
       </div>
-      <p className="text-[11px] text-white/45 mb-6">{t('rep.chainNote')}</p>
 
-      <div className="text-center">
+      <div className="text-center mt-8 fade-up" style={{ animationDelay: '.15s' }}>
         <button onClick={onGoBracket}
-          className="px-5 py-2.5 rounded-xl bg-blue-600/25 border border-blue-500/40 text-blue-200 text-sm font-bold hover:bg-blue-600/35 transition-colors">
+          className="px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-transform hover:scale-[1.03] active:scale-100"
+          style={{ background: 'linear-gradient(135deg, rgba(63,123,255,0.9), rgba(155,64,240,0.85))', boxShadow: '0 8px 24px rgba(63,123,255,0.25)' }}>
           {t('rep.goBracket')}
         </button>
       </div>
